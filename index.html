@@ -154,8 +154,6 @@ footer{font-size:.8125rem;color:var(--muted)}
 </div>
 <div class="toast" id="toast" role="status"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
 <script>
 "use strict";
 /* ---------- fixed content ---------- */
@@ -171,18 +169,19 @@ const FAMILIES=[
  {id:"anticipation",a:"🦊",an:"fox",words:["interest","anticipation","vigilance"]}
 ];
 const FAM={},WORD={};FAMILIES.forEach(f=>{FAM[f.id]=f;f.words.forEach((w,i)=>WORD[f.id+"-"+i]={w,f:f.id,a:f.a});});
-// Scoring keys as printed on the user's own copies. Question wording is not stored in this page.
+// PHQ-9 and GAD-7: official wording, answer choices and severity ranges.
+const CREDIT="Developed by Drs. Robert L. Spitzer, Janet B.W. Williams, Kurt Kroenke and colleagues, with an educational grant from Pfizer Inc. No permission required to reproduce, translate, display or distribute.";
+const STEM="Over the last 2 weeks, how often have you been bothered by any of the following problems?";
+const OPTS=["Not at all","Several days","More than half the days","Nearly every day"];
 const SCALES={
- dep:{name:"Burns Depression Checklist",short:"Depression",n:15,better:"lower",
-  credit:"© 1984 David D. Burns, M.D., from The Feeling Good Handbook",
-  prompt:"How much has each one bothered you during the past week?",
-  opts:["Not at all","Somewhat","Moderately","A lot"],
-  bands:[[0,4,"Minimal or no depression"],[5,10,"Borderline depression"],[11,20,"Mild depression"],[21,30,"Moderate depression"],[31,45,"Severe depression"]]},
- anx:{name:"Burns Anxiety Inventory",short:"Anxiety",n:33,better:"lower",
-  credit:"© 1984 David D. Burns, M.D., from The Feeling Good Handbook",
-  prompt:"How much has each one bothered you during the past week?",
-  opts:["Not at all","Somewhat","Moderately","A lot"],
-  bands:[[0,4,"Minimal or no anxiety"],[5,10,"Borderline anxiety"],[11,20,"Mild anxiety"],[21,30,"Moderate anxiety"],[31,50,"Severe anxiety"],[51,99,"Extreme anxiety or panic"]]}
+ phq:{name:"PHQ-9",short:"Depression",n:9,better:"lower",credit:CREDIT,prompt:STEM,opts:OPTS,
+  items:["Little interest or pleasure in doing things","Feeling down, depressed, or hopeless","Trouble falling or staying asleep, or sleeping too much","Feeling tired or having little energy","Poor appetite or overeating",
+   "Feeling bad about yourself \u2014 or that you are a failure or have let yourself or your family down","Trouble concentrating on things, such as reading the newspaper or watching television",
+   "Moving or speaking so slowly that other people could have noticed? Or the opposite \u2014 being so fidgety or restless that you have been moving around a lot more than usual","Thoughts that you would be better off dead or of hurting yourself in some way"],
+  bands:[[0,4,"Minimal depression"],[5,9,"Mild depression"],[10,14,"Moderate depression"],[15,19,"Moderately severe depression"],[20,27,"Severe depression"]]},
+ gad:{name:"GAD-7",short:"Anxiety",n:7,better:"lower",credit:CREDIT,prompt:STEM,opts:OPTS,
+  items:["Feeling nervous, anxious or on edge","Not being able to stop or control worrying","Worrying too much about different things","Trouble relaxing","Being so restless that it is hard to sit still","Becoming easily annoyed or irritable","Feeling afraid as if something awful might happen"],
+  bands:[[0,4,"Minimal anxiety"],[5,9,"Mild anxiety"],[10,14,"Moderate anxiety"],[15,21,"Severe anxiety"]]}
 };
 const band=(k,t)=>{const b=SCALES[k].bands;return (b.find(x=>t>=x[0]&&t<=x[1])||(t>b[b.length-1][1]?b[b.length-1]:b[0]))[2];};
 // Movement. Effort levels follow the CDC talk test.
@@ -216,11 +215,6 @@ const Store={mode:"loading",db:null,col:null,docs:{},shared:{},wrote:false,owner
 function readLocal(){try{return JSON.parse(localStorage.getItem(LS)||"{}")||{};}catch(e){return {};}}
 function writeLocal(){try{localStorage.setItem(LS,JSON.stringify(Store.docs));return true;}catch(e){return false;}}
 function timeout(p,ms){return Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej({code:"timeout"}),ms))]);}
-const hasQ=sc=>sc&&["dep","anx","rel"].some(k=>Array.isArray(sc[k])&&sc[k].length);
-async function shareQuestions(sc){ // lets everyone this page is shared with use the same questions
-  if(!Store.db||!hasQ(sc))return false;
-  try{await Store.db.doc("shared/scales").set(sc);Store.shared=sc;return true;}catch(e){return false;}
-}
 async function initStore(){
   let db=null,user=null,uid=null;
   try{
@@ -229,7 +223,6 @@ async function initStore(){
     if(user){uid=await user.id();Store.owner=!!(await user.isOwner());}
   }catch(e){}
   Store.db=db;
-  if(db){try{const s=await timeout(db.doc("shared/scales").get(),8000);if(s.exists)Store.shared=JSON.parse(JSON.stringify(s.data()));}catch(e){}}
   if(db&&uid){
     try{
       const col=db.collection("data/users/"+uid);
@@ -237,7 +230,6 @@ async function initStore(){
       snap.docs.forEach(d=>{if(d.exists)Store.docs[d.id]=JSON.parse(JSON.stringify(d.data()));});
       Store.col=col;Store.mode="account";
       if(!Object.keys(Store.docs).length){const l=readLocal();if(Object.keys(l).length){Store.docs=l;Store.mode="device";}}
-      if(Store.mode==="account"&&Store.owner&&hasQ(Store.docs.scales)&&JSON.stringify(Store.docs.scales)!==JSON.stringify(Store.shared))shareQuestions(Store.docs.scales);
       return;
     }catch(e){}
   }
@@ -269,7 +261,7 @@ function paintStatus(){
     b.innerHTML='<div class="banner">Everything you write stays in this browser on this device. Nobody else who opens this page can read it. It will not follow you to a new phone, so copy a backup from Setup once in a while.</div>';}
 }
 const entries=t=>Object.entries(Store.docs).filter(([k,v])=>v&&v.t===t&&(t!=="q"||SCALES[v.scale])).map(([k,v])=>({id:k,...v})).sort((a,b)=>a.ts-b.ts);
-function items(k){const own=(Store.docs.scales||{})[k];if(Array.isArray(own)&&own.length)return own;const sh=(Store.shared||{})[k];return Array.isArray(sh)?sh:[];}
+const items=k=>SCALES[k].items;
 const ready=k=>items(k).length>0;
 const hidden=k=>(((Store.docs.prefs||{}).hide)||[]).includes(k);
 const shown=()=>Object.keys(SCALES).filter(k=>!hidden(k));
@@ -358,17 +350,16 @@ function viewMove(){
 function viewScales(){
   if(UI.result) return viewResult();
   if(UI.taking) return viewTake();
-  return `<p class="muted small">The same check-ups your therapist uses. Once a week is plenty.</p>`+active().map(k=>{
+  return `<p class="muted small">Two short, standard check-ups. Once a week is plenty.</p>`+active().map(k=>{
     const s=SCALES[k],n=items(k).length,es=entries("q").filter(e=>e.scale===k),last=es[es.length-1];
-    return `<section class="card"><div class="row between"><div><h2>${s.short} check-up</h2><p class="muted small">${n?`${n} quick taps`:s.name}</p></div>
-      ${ready(k)?`<button class="primary" data-take="${k}">Start</button>`:`<a class="btn" href="#setup">Add the questions</a>`}</div>
+    return `<section class="card"><div class="row between"><div><h2>${s.short} check-up</h2><p class="muted small">${s.name} · ${n} quick taps</p></div>
+      <button class="primary" data-take="${k}">Start</button></div>
       <p class="small">${last?`Last time, ${fmtDay(last.ts)}: <strong>${last.total}</strong> · ${esc(band(k,last.total))}`:'<span class="muted">Not taken yet</span>'}</p></section>`;
   }).join("");
 }
 function viewTake(){
   const k=UI.taking,s=SCALES[k],q=items(k);
-  return `<section class="card"><div><h2>${s.name}</h2><p class="muted small">${s.prompt} There are no right answers.</p></div>
-    ${k==="rel"?`<div><label class="lab" for="about">Who is this about? (optional)</label><input type="text" id="about" value="${esc(UI.about)}" maxlength="60"></div>`:""}
+  return `<section class="card"><div><h2>${s.short} check-up</h2><p style="font-weight:500">${s.prompt}</p><p class="muted small">${s.name}. There are no right answers.</p></div>
     <form id="qform">${q.map((t,i)=>`<fieldset><legend>${i+1}. ${esc(t)}</legend><div class="opts">${s.opts.map((o,v)=>`<label><input type="radio" name="q${i}" id="q${i}_${v}" value="${v}" ${UI.answers[i]===v?"checked":""}><span>${v} · ${o}</span></label>`).join("")}</div></fieldset>`).join("")}</form>
     <div class="sticky row between"><span id="progress" class="small"></span><span class="row"><button data-quit="1">Cancel</button><button class="primary" id="saveScale" disabled>Save</button></span></div>
     <p class="muted small">${s.credit}</p></section>`;
@@ -381,9 +372,9 @@ function viewResult(){
   const r=UI.result,s=SCALES[r.scale];
   return `<section class="card"><h2>Done. Thanks for being honest.</h2>
     <div class="tiles"><div class="tile"><div class="k">${s.short} score, out of ${r.max}</div><div class="v">${r.total}</div></div>
-    <div class="tile"><div class="k">On the printed key</div><div style="font-weight:700;font-size:1.05rem">${esc(band(r.scale,r.total))}</div></div></div>
-    <p class="small muted">A score is a snapshot of one week. It is something to bring to your therapist, and it changes.${r.n!==s.n?` The key was written for the ${s.n}-question form and you answered ${r.n}.`:""}</p>
-    ${r.care?`<div class="banner care"><strong>You marked thoughts that life is not worth living.</strong> Please tell your therapist or an adult you trust today. If you might act on those thoughts, call or text 988 now, or call 911.</div>`:""}
+    <div class="tile"><div class="k">Score range</div><div style="font-weight:700;font-size:1.05rem">${esc(band(r.scale,r.total))}</div></div></div>
+    <p class="small muted">A score is a snapshot of one week. It is something to bring to your therapist, and it changes.</p>
+    ${r.care?`<div class="banner care"><strong>You marked thoughts of being better off dead or of hurting yourself.</strong> Please tell your therapist or an adult you trust today. If you might act on those thoughts, call or text 988 now, or call 911.</div>`:""}
     <details><summary class="small">See the full key</summary><div class="tablebox"><table><thead><tr><th>Total score</th><th>Level</th></tr></thead><tbody>${s.bands.map(b=>`<tr><td>${b[0]} to ${b[1]}</td><td>${b[2]}</td></tr>`).join("")}</tbody></table></div></details>
     <div class="row"><a class="btn" href="#trends" data-done="1">See trends</a><button data-done="1">Done</button></div></section>`;
 }
@@ -454,65 +445,21 @@ const viewTrends=()=>active().map(scaleTrend).join("")+emotionTrend()+moveTrend(
 
 /* ---------- setup ---------- */
 function viewSetup(){
-  const mine=hasQ(Store.docs.scales),fromShared=!mine&&hasQ(Store.shared);
-  return `<section class="card"><div><h2>Questions for the check-ups</h2>
-    <p class="small muted">${fromShared?"The questions are already loaded for you. Nothing to do here.":"The Burns questionnaires are copyrighted, so this page does not carry their wording. Choose the PDFs from the therapist and the questions are read from that copy. One person does this once."}</p></div>
-    ${fromShared?"":`<div class="row"><input type="file" id="pdfs" accept="application/pdf,.pdf" multiple style="max-width:100%"></div><p class="small" id="pdfmsg" aria-live="polite"></p>`}</section>
-  ${shown().map(k=>{const s=SCALES[k],q=items(k);return `<section class="card"><div class="row between"><h3>${s.name}</h3><span class="pill ${q.length?"good":"warn"}" id="cnt-${k}">${q.length} questions</span></div>
-    <div><label class="lab" for="ta-${k}">One question per line, in the order on the printed form (${s.n} there)</label><textarea id="ta-${k}" data-k="${k}" rows="5" spellcheck="false">${esc(q.join("\n"))}</textarea></div>
-    <div class="row"><button data-savek="${k}">Save questions</button></div></section>`;}).join("")}
-  <section class="card"><h2>Weekly reward</h2><p class="small muted">What three stamps in a week earn. Agree on it together, then type it here. Leave it empty for no reward.</p>
+  return `<section class="card"><h2>Weekly reward</h2><p class="small muted">What three stamps in a week earn. Leave it empty for no reward.</p>
     <div><label class="lab" for="reward">Reward for 3 stamps</label><input type="text" id="reward" maxlength="60" value="${esc(reward())}"></div>
     <div class="row"><button id="saveReward">Save reward</button></div></section>
-  <section class="card"><h2>Give the questions to someone else</h2>
-    <p class="small muted">${Store.mode==="account"&&hasQ(Store.shared)?"Anyone you share this page with who is signed in to Claude gets your saved questions automatically. ":""}For anyone else, copy the question code and have them paste it into the box below on their own device. It holds the questions only, none of your entries.</p>
-    <div class="row"><button id="copyQ" ${ready("dep")||ready("anx")?"":"disabled"}>Copy question code</button></div></section>
-  <section class="card"><h2>Paste a code or a backup</h2>
-    <div><label class="lab" for="restore">Question code or backup text</label><textarea id="restore" rows="3" spellcheck="false"></textarea></div>
-    <div class="row"><button id="doRestore" class="primary">Load it</button><button id="copyBackup">Copy a backup of my entries</button></div>
-    <p class="small muted">A backup holds everything you have written. Keep it somewhere only you can open.</p></section>`;
+  <section class="card"><h2>Backup</h2><p class="small muted">Everything you write lives in this browser on this device. A backup is a block of text holding all of it. Keep it somewhere only you can open.</p>
+    <div class="row"><button id="copyBackup">Copy a backup</button></div>
+    <div><label class="lab" for="restore">Restore from a backup</label><textarea id="restore" rows="3" spellcheck="false"></textarea></div>
+    <div class="row"><button id="doRestore">Restore</button></div></section>`;
 }
-/* PDF text -> question lists */
-function cleanItem(t){return t.split(/CATEGORY\s+[IVX]+|\(Next Page\)|\[p\.|Name\s*:|Symptom List|Add up your total/i)[0].replace(/\s+/g," ").trim();}
-function numbered(seg){return seg.split(/(?:^|\s)\d{1,2}\.\s+/).slice(1).map(cleanItem).filter(Boolean);}
-function parseForms(text){
-  const T=text.replace(/\r/g,""),out={};
-  const di=T.search(/DEPRESSION\s+CHECKLIST/i),ai=T.search(/ANXIETY\s+INVENTORY/i);
-  if(di>=0){const seg=T.slice(di,ai>di?ai:undefined);out.dep=numbered(seg.split(/Add up your total/i)[0]);}
-  if(ai>=0){const seg=T.slice(ai,di>ai?di:undefined);out.anx=numbered(seg.split(/Add up your total/i)[0]);}
-  const ri=T.search(/Relationship\s+Satisfaction\s+Scale/i);
-  if(ri>=0){
-    const head=T.slice(ri).split(/Total\s+score\s+on\s+items/i)[0];let m,idx=-1;const re=/Very\s+Satisfied/gi;
-    while((m=re.exec(head)))idx=m.index+m[0].length;
-    if(idx>=0){const res=[];head.slice(idx).split("\n").map(l=>l.trim()).filter(Boolean).forEach(l=>{if(res.length&&/^[a-z]/.test(l))res[res.length-1]+=" "+l;else res.push(l);});out.rel=res.map(x=>x.replace(/\s+/g," "));}
-  }
-  return out;
-}
-async function pdfText(file){
-  const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;let t="";
-  for(let p=1;p<=pdf.numPages;p++){const c=await(await pdf.getPage(p)).getTextContent();t+=c.items.map(i=>i.str+(i.hasEOL?"\n":"")).join("")+"\n";}
-  return t;
-}
-async function importPDFs(files){
-  const msg=$("#pdfmsg");
-  if(!window.pdfjsLib){msg.textContent="The PDF reader did not load. Type or paste the questions into the boxes below instead.";return;}
-  msg.textContent="Reading…";
-  try{pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";}catch(e){}
-  const found={};
-  for(const f of files){try{Object.assign(found,parseForms(await pdfText(f)));}catch(e){}}
-  const got=Object.keys(found).filter(k=>SCALES[k]&&found[k].length);
-  if(!got.length){msg.textContent="No questionnaire text was found in that file. If it is a scan, type the questions into the boxes below.";return;}
-  got.forEach(k=>{const ta=$("#ta-"+k);ta.value=found[k].join("\n");countTa(ta);});
-  msg.textContent="Found "+got.map(k=>SCALES[k].short+" ("+found[k].length+")").join(", ")+". Check the wording against the paper copy, then press Save questions under each one.";
-}
-function countTa(ta){const k=ta.dataset.k,n=ta.value.split("\n").map(s=>s.trim()).filter(Boolean).length,el=$("#cnt-"+k);el.textContent=n+" questions";el.className="pill "+(n?"good":"warn");}
 async function copyText(txt,ok){try{await navigator.clipboard.writeText(txt);toast(ok);}catch(e){$("#restore").value=txt;toast("Copying was blocked. The text is in the box; select and copy it.");}}
 
 /* ---------- render + events ---------- */
 const VIEWS={today:viewToday,move:viewMove,scales:viewScales,trends:viewTrends,setup:viewSetup};
 let VIEW=null;
 function route(){if(VIEW)return VIEW;let h="";try{h=location.hash.slice(1);}catch(e){}return VIEWS[h]?h:"today";}
-function go(v){if(!VIEWS[v])return;VIEW=v;UI.confirm=null;if(v!=="scales"){UI.taking=null;UI.result=null;}try{if(location.hash.slice(1)!==v)location.hash=v;}catch(e){}render();try{window.scrollTo(0,0);}catch(e){}}
+function go(v){if(!VIEWS[v])return;if(v!=="scales"){UI.taking=null;UI.result=null;}else if(route()==="scales")UI.result=null;VIEW=v;UI.confirm=null;try{if(location.hash.slice(1)!==v)location.hash=v;}catch(e){}render();try{window.scrollTo(0,0);}catch(e){}}
 function render(){
   const r=route();
   document.querySelectorAll("nav a").forEach(a=>a.getAttribute("href")==="#"+r?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current"));
@@ -549,29 +496,20 @@ main.addEventListener("click",async ev=>{
   else if(b.dataset.quit){UI.taking=null;render();}
   else if(b.id==="saveScale"){b.disabled=true;const k=UI.taking,ts=Date.now(),total=UI.answers.reduce((a,v)=>a+v,0),q=items(k);
     const doc={t:"q",scale:k,ts,answers:UI.answers.slice(),total};const ab=$("#about")?$("#about").value.trim():"";if(ab)doc.about=ab;
-    const care=k==="dep"&&q.some((txt,i)=>/suicid|better off dead|not worth living/i.test(txt)&&UI.answers[i]>=1);
+    const care=k==="phq"&&UI.answers[8]>=1;
     if(await saveDoc("q-"+ts.toString(36),doc)){UI.result={scale:k,total,care,n:q.length,max:maxOf(k,q.length)};UI.taking=null;}render();window.scrollTo(0,0);}
   else if(b.dataset.done){UI.result=null;if(b.tagName==="BUTTON")render();}
-  else if(b.dataset.savek){const k=b.dataset.savek,list=$("#ta-"+k).value.split("\n").map(s=>s.trim()).filter(Boolean);
-    if(!list.length){toast("Add at least one question first.");return;}
-    const sc=Object.assign({},Store.shared||{},Store.docs.scales||{});sc[k]=list;
-    if(await saveDoc("scales",sc)){const sh=Store.mode==="account"&&await shareQuestions(sc);toast(sh?"Saved, and shared with people you share this page with":"Questions saved");}}
-  else if(b.id==="copyQ"){const q={};Object.keys(SCALES).forEach(k=>{if(ready(k))q[k]=items(k);});copyText(JSON.stringify({vibeQuestions:q}),"Question code copied. Send it to the other person.");}
   else if(b.id==="copyBackup"){copyText(JSON.stringify(Store.docs),"Backup copied. Paste it somewhere private.");}
   else if(b.id==="doRestore"){let d;try{d=JSON.parse($("#restore").value);}catch(e){}
-    if(!d||typeof d!=="object"||Array.isArray(d)){toast("That is not a question code or a backup from this journal.");return;}
-    if(d.vibeQuestions&&typeof d.vibeQuestions==="object"){const sc=Object.assign({},Store.docs.scales||{});
-      Object.keys(SCALES).forEach(k=>{const l=d.vibeQuestions[k];if(Array.isArray(l)&&l.length)sc[k]=l.map(x=>String(x).slice(0,400)).slice(0,60);});
-      if(Array.isArray(d.hide)){const pr=Object.assign({},Store.docs.prefs||{});pr.hide=d.hide.filter(k=>SCALES[k]);await saveDoc("prefs",pr);}
-      if(await saveDoc("scales",sc))toast("Questions loaded. The check-ups are ready.");render();return;}
+    if(!d||typeof d!=="object"||Array.isArray(d)){toast("That is not backup text from this journal.");return;}
     let n=0;for(const [id,v] of Object.entries(d)){if(/^(scales|prefs|[cqmr]-[a-z0-9]+)$/.test(id)&&v&&typeof v==="object"){if(await saveDoc(id,v))n++;}}
     toast("Restored "+n+" items");render();}
 });
 main.addEventListener("keydown",ev=>{const g=ev.target.closest&&ev.target.closest(".sec");if(g&&(ev.key===" "||ev.key==="Enter")){ev.preventDefault();pickFamily(g.dataset.f);}});
 main.addEventListener("change",ev=>{const t=ev.target;
   if(t.type==="radio"&&UI.taking){UI.answers[+t.name.slice(1)]=+t.value;paintProgress();}
-  else if(t.id==="pdfs"&&t.files.length)importPDFs([...t.files]);});
-main.addEventListener("input",ev=>{const t=ev.target;if(t.id==="note")UI.note=t.value;else if(t.id==="about")UI.about=t.value;else if(t.dataset&&t.dataset.k)countTa(t);});
+});
+main.addEventListener("input",ev=>{const t=ev.target;if(t.id==="note")UI.note=t.value;else if(t.id==="about")UI.about=t.value;});
 main.addEventListener("submit",ev=>ev.preventDefault());
 main.addEventListener("pointermove",ev=>{const h=ev.target.closest&&ev.target.closest(".hit");document.querySelectorAll(".tip").forEach(x=>x.style.display="none");
   if(h){const tip=h.closest(".chartbox").querySelector(".tip");tip.textContent=h.dataset.tip;tip.style.left=h.dataset.x+"%";tip.style.top=h.dataset.y+"%";tip.style.display="block";}});
