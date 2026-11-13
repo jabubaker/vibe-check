@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vibe Check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: phone-first sticker book. Chunky outlined cards with hard offset shadows, matcha green as the main colour, pink and yellow as stickers; thumb nav pinned to the bottom. */
+:root{
+  --bg:#eef4e3; --surface:#fffdf7; --ink:#1c2a1e; --muted:#56655a; --edge:#1c2a1e; --shadow:#1c2a1e; --line:#d5dfcc;
+  --matcha:#8fc463; --pink:#ff8fb3; --sun:#ffd447; --on:#14210f; --chart:#2f7d32;
+  --good:#1f7a45; --warn:#b4480f; --prev:#b9c4b4;
+  --e-joy:#f2c21a; --e-trust:#7dbb5c; --e-fear:#3aa37a; --e-surprise:#45a9e0;
+  --e-sadness:#5b7fe0; --e-disgust:#a274d6; --e-anger:#ee5d54; --e-anticipation:#f39a3d;
+  --tint:38%;
+  --display:"Fredoka","Trebuchet MS",system-ui,sans-serif;
+  --body:"DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#131a14; --surface:#1d261e; --ink:#eef5e6; --muted:#a3b3a4; --edge:#dfe8d6; --shadow:#000000; --line:#344034;
+    --matcha:#86c058; --pink:#ff8fb3; --sun:#ffd447; --on:#14210f; --chart:#9bd46a;
+    --good:#7fd69b; --warn:#ffab73; --prev:#55624f; --tint:34%;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#131a14; --surface:#1d261e; --ink:#eef5e6; --muted:#a3b3a4; --edge:#dfe8d6; --shadow:#000000; --line:#344034;
+  --matcha:#86c058; --pink:#ff8fb3; --sun:#ffd447; --on:#14210f; --chart:#9bd46a;
+  --good:#7fd69b; --warn:#ffab73; --prev:#55624f; --tint:34%;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45}
+.wrap{max-width:560px;margin:0 auto;padding:18px 16px 40px;display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 14px}
+h1{font-family:var(--display);font-weight:700;font-size:1.9rem;margin:0;line-height:1}
+h1 span{background:var(--sun);color:var(--on);padding:0 8px;border-radius:10px;border:2px solid var(--edge);display:inline-block;transform:rotate(-3deg);margin-left:2px}
+h2{font-family:var(--display);font-weight:600;font-size:1.3rem;margin:0;text-wrap:balance;line-height:1.2}
+h3{font-family:var(--display);font-weight:600;font-size:1.05rem;margin:0}
+p{margin:0}
+.muted{color:var(--muted)} .small{font-size:.875rem}
+.status{font-size:.8125rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--prev);flex:none;border:1px solid var(--edge)}
+.dot.ok{background:var(--matcha)} .dot.dev{background:var(--sun)}
+nav{position:sticky;top:8px;z-index:4;background:var(--surface);border:2px solid var(--edge);border-radius:18px;padding:5px;box-shadow:4px 4px 0 var(--shadow)}
+nav div{display:flex;gap:3px}
+nav a{flex:1;text-align:center;padding:6px 2px;border-radius:12px;text-decoration:none;color:var(--muted);font-weight:700;font-size:.68rem;white-space:nowrap;border:2px solid transparent;display:flex;flex-direction:column;gap:1px;align-items:center}
+nav a i{font-style:normal;font-size:1.25rem;line-height:1.2}
+nav a[aria-current="page"]{background:var(--sun);color:var(--on);border-color:var(--edge)}
+.card{background:var(--surface);border:2px solid var(--edge);border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:14px;box-shadow:4px 4px 0 var(--shadow)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.between{justify-content:space-between}
+button,.btn{font:inherit;font-weight:700;border-radius:14px;border:2px solid var(--edge);background:var(--surface);color:var(--ink);padding:9px 14px;cursor:pointer;box-shadow:2px 2px 0 var(--shadow);text-decoration:none;display:inline-block}
+button:active{transform:translate(2px,2px);box-shadow:none}
+button.primary{background:var(--matcha);color:var(--on)}
+button.on{background:var(--pink);color:var(--on)}
+button.quiet{border-color:transparent;background:transparent;color:var(--muted);padding:4px 8px;font-size:.8125rem;box-shadow:none}
+button:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:3px solid var(--chart);outline-offset:2px}
+textarea,input[type=text]{font:inherit;width:100%;border:2px solid var(--edge);border-radius:14px;background:var(--bg);color:var(--ink);padding:10px 12px}
+textarea{min-height:76px;resize:vertical}
+label.lab{font-weight:700;font-size:.875rem;display:block;margin-bottom:4px}
+.banner{border:2px dashed var(--edge);background:var(--surface);border-radius:14px;padding:10px 14px;font-size:.9rem}
+.banner.care{border-style:solid;background:var(--pink);color:var(--on)}
+/* wheel */
+.wheelbox{max-width:420px;width:100%;margin:0 auto}
+.wheel{width:100%;height:auto;display:block;touch-action:manipulation}
+.sec path{stroke:var(--edge);stroke-width:2.5;cursor:pointer}
+.sec text{text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.sec .w{font-family:var(--body);font-weight:700;font-size:12px;fill:var(--ink)}
+.sec.sel .w{text-decoration:underline}
+.sec.act path{stroke-width:5}
+.sec:focus-visible{outline:none}.sec:focus-visible path{stroke:var(--chart);stroke-width:6}
+.hub{fill:var(--surface);stroke:var(--edge);stroke-width:2.5}
+.hubt{font-family:var(--display);font-weight:600;font-size:13px;fill:var(--muted);text-anchor:middle;dominant-baseline:central}
+.sizes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sizes button{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;padding:8px 4px;min-height:86px;font-size:.85rem}
+.sizes i{font-style:normal;line-height:1}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:5px;border:2px solid var(--edge);border-radius:999px;padding:2px 10px;font-size:.875rem;font-weight:500}
+/* questionnaire */
+fieldset{border:0;border-top:2px dotted var(--line);margin:0;padding:12px 0 4px;display:flex;flex-direction:column;gap:8px;min-width:0}
+legend{padding:0;font-weight:500;float:left;width:100%}
+.opts{display:flex;flex-wrap:wrap;gap:6px;clear:both}
+.opts label{position:relative}
+.opts input{position:absolute;opacity:0;inset:0;width:100%;height:100%;cursor:pointer;margin:0}
+.opts span{display:block;border:2px solid var(--edge);border-radius:12px;padding:6px 10px;font-size:.875rem;background:var(--surface)}
+.opts input:checked+span{background:var(--matcha);color:var(--on);font-weight:700}
+.opts input:focus-visible+span{outline:3px solid var(--chart);outline-offset:2px}
+.sticky{position:sticky;bottom:8px;background:var(--sun);color:var(--on);border:2px solid var(--edge);border-radius:14px;padding:8px 12px}
+/* move */
+.stamps{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.stamp{width:74px;height:74px;border-radius:50%;border:3px dashed var(--muted);display:grid;place-items:center;font-size:2rem;color:var(--muted);font-family:var(--display)}
+.stamp.got{border:3px solid var(--edge);background:var(--matcha);transform:rotate(-8deg);box-shadow:3px 3px 0 var(--shadow)}
+.stamp.got:nth-child(even){transform:rotate(6deg);background:var(--pink)}
+.pick{display:flex;flex-wrap:wrap;gap:6px}
+.pick button{font-weight:500;font-size:.9rem;padding:7px 11px}
+.eff{display:grid;gap:8px}
+.eff button{text-align:left;font-weight:500}
+.eff b{display:block;font-family:var(--display);font-weight:600}
+.idea{background:var(--sun);color:var(--on);border:2px solid var(--edge);border-radius:16px;padding:12px 14px;font-weight:500;transform:rotate(-1deg)}
+/* stats */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.tile{border:2px solid var(--edge);border-radius:16px;padding:10px 12px;background:var(--bg)}
+.tile .k{font-size:.8125rem;color:var(--muted)}
+.tile .v{font-family:var(--display);font-size:1.8rem;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:.8125rem;font-weight:700;border:2px solid var(--line)}
+.pill.good{color:var(--good);border-color:var(--good)} .pill.warn{color:var(--warn);border-color:var(--warn)}
+.tablebox{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.875rem;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:.8rem;color:var(--muted);font-weight:700}
+td.num,th.num{text-align:right}
+.chartbox{position:relative}
+.chart{width:100%;height:auto;display:block}
+.chart text{font-family:var(--body);font-size:12px;fill:var(--muted)}
+.chart .val{fill:var(--ink);font-weight:700;font-size:13px}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:.8125rem;padding:5px 9px;border-radius:8px;transform:translate(-50%,-130%);white-space:nowrap;display:none}
+.bars{display:grid;grid-template-columns:auto 1fr;gap:7px 10px;align-items:center;font-size:.875rem}
+.bars .pair{display:flex;flex-direction:column;gap:2px;min-width:0}
+.bar{display:flex;align-items:center;gap:6px;height:12px}
+.bar i{display:block;height:100%;border-radius:0 5px 5px 0;min-width:2px;background:var(--chart)}
+.bar.prev i{background:var(--prev)}
+.bar b{font-weight:700;font-size:.75rem;font-variant-numeric:tabular-nums}
+.goalbar{position:relative;height:16px;background:var(--bg);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.goalbar i{display:block;height:100%;background:var(--chart)}
+.goalbar u{position:absolute;left:50%;top:0;bottom:0;border-left:2px dashed var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.8125rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:11px;height:11px;border-radius:3px;flex:none;display:inline-block}
+.entry{border-top:2px dotted var(--line);padding-top:10px;display:flex;flex-direction:column;gap:6px}
+.note{white-space:pre-wrap;overflow-wrap:anywhere}
+footer{font-size:.8125rem;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:12px;font-size:.9rem;font-weight:500;display:none;z-index:5;max-width:calc(100% - 32px);text-align:center}
+@media (prefers-reduced-motion:no-preference){.bar i,.goalbar i{transition:width .3s}.stamp.got{animation:pop .35s}@keyframes pop{from{scale:1.5}to{scale:1}}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Vibe <span>Check</span></h1>
+    <div class="status" id="status"><span class="dot"></span><span>Opening your journal</span></div>
+  </header>
+  <nav aria-label="Sections"><div>
+  <a href="#today"><i aria-hidden="true">🦊</i>Today</a><a href="#move"><i aria-hidden="true">🥊</i>Move</a><a href="#scales"><i aria-hidden="true">📝</i>Check-ups</a><a href="#trends"><i aria-hidden="true">📈</i>Trends</a><a href="#setup"><i aria-hidden="true">⚙️</i>Setup</a>
+</div></nav>
+  <div id="banner"></div>
+  <main id="main" class="wrap" style="padding:0"></main>
+  <footer>This is your space to notice how you are doing. It is not a diagnosis and it does not replace your therapist. If you ever think about hurting yourself, call or text 988 (US) or call 911. Someone answers day and night.</footer>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script>
+"use strict";
+/* ---------- fixed content ---------- */
+// Plutchik's wheel of emotions: 8 primary emotions, each at mild / basic / intense. The animals are only mascots.
+const FAMILIES=[
+ {id:"joy",a:"🦦",an:"otter",words:["serenity","joy","ecstasy"]},
+ {id:"trust",a:"🐶",an:"pup",words:["acceptance","trust","admiration"]},
+ {id:"fear",a:"🐰",an:"bunny",words:["apprehension","fear","terror"]},
+ {id:"surprise",a:"🦉",an:"owl",words:["distraction","surprise","amazement"]},
+ {id:"sadness",a:"🐳",an:"whale",words:["pensiveness","sadness","grief"]},
+ {id:"disgust",a:"🐱",an:"cat",words:["boredom","disgust","loathing"]},
+ {id:"anger",a:"🐲",an:"dragon",words:["annoyance","anger","rage"]},
+ {id:"anticipation",a:"🦊",an:"fox",words:["interest","anticipation","vigilance"]}
+];
+const FAM={},WORD={};FAMILIES.forEach(f=>{FAM[f.id]=f;f.words.forEach((w,i)=>WORD[f.id+"-"+i]={w,f:f.id,a:f.a});});
+// Scoring keys as printed on the user's own copies. Question wording is not stored in this page.
+const SCALES={
+ dep:{name:"Burns Depression Checklist",short:"Depression",n:15,better:"lower",
+  credit:"© 1984 David D. Burns, M.D., from The Feeling Good Handbook",
+  prompt:"How much has each one bothered you during the past week?",
+  opts:["Not at all","Somewhat","Moderately","A lot"],
+  bands:[[0,4,"Minimal or no depression"],[5,10,"Borderline depression"],[11,20,"Mild depression"],[21,30,"Moderate depression"],[31,45,"Severe depression"]]},
+ anx:{name:"Burns Anxiety Inventory",short:"Anxiety",n:33,better:"lower",
+  credit:"© 1984 David D. Burns, M.D., from The Feeling Good Handbook",
+  prompt:"How much has each one bothered you during the past week?",
+  opts:["Not at all","Somewhat","Moderately","A lot"],
+  bands:[[0,4,"Minimal or no anxiety"],[5,10,"Borderline anxiety"],[11,20,"Mild anxiety"],[21,30,"Moderate anxiety"],[31,50,"Severe anxiety"],[51,99,"Extreme anxiety or panic"]]}
+};
+const band=(k,t)=>{const b=SCALES[k].bands;return (b.find(x=>t>=x[0]&&t<=x[1])||(t>b[b.length-1][1]?b[b.length-1]:b[0]))[2];};
+// Movement. Effort levels follow the CDC talk test.
+const ACTS=[["box","🥊","Boxing"],["photo","📸","Fast photo walk"],["walk","🍵","Brisk walk"],["rope","⏱️","Jump rope"],["stairs","🪜","Stairs"],["home","🤸","Home workout"],["other","✨","Something else"]];
+const ACT={};ACTS.forEach(a=>ACT[a[0]]=a);
+const EFFORT=[["Light","You could sing along the whole time"],["Moderate","You can talk, but you can't sing"],["Vigorous","A few words, then you need a breath"]];
+const IDEAS=[
+ "📸 Photo sprint: speed-walk between five spots and take one shot at each. About 20 minutes.",
+ "🥊 Shadowbox three rounds of three minutes in your room. 10 minutes, done.",
+ "🍵 Walk fast to get matcha and take the long way there. About 25 minutes.",
+ "🥊 Boxing class. It is already paid for. Go for the warm-up and decide the rest once you are there.",
+ "📚 Stairs between homework blocks: up and down for 10 minutes, then back to it with a clearer head.",
+ "🍜 Walk fast to a food spot you have not tried yet. Photos of the food count as a bonus.",
+ "🤸 Follow one 15-minute workout video. Pick the one with the best playlist.",
+ "⏱️ Jump rope: one minute on, one minute off, eight rounds."
+];
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function weekStart(ts){const d=new Date(ts);d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return d.getTime();}
+function prevWeek(ws){const d=new Date(ws);d.setDate(d.getDate()-7);return d.getTime();}
+const fmtDay=ts=>new Date(ts).toLocaleDateString(undefined,{month:"short",day:"numeric"});
+const fmtFull=ts=>new Date(ts).toLocaleString(undefined,{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});
+const r1=n=>Math.round(n*10)/10;
+let toastT;function toast(m){const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(toastT);toastT=setTimeout(()=>t.style.display="none",3500);}
+
+/* ---------- storage: private per account, else this browser ---------- */
+const LS="mood-journal-v1";
+const Store={mode:"loading",db:null,col:null,docs:{},shared:{},wrote:false,owner:false};
+function readLocal(){try{return JSON.parse(localStorage.getItem(LS)||"{}")||{};}catch(e){return {};}}
+function writeLocal(){try{localStorage.setItem(LS,JSON.stringify(Store.docs));return true;}catch(e){return false;}}
+function timeout(p,ms){return Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej({code:"timeout"}),ms))]);}
+const hasQ=sc=>sc&&["dep","anx","rel"].some(k=>Array.isArray(sc[k])&&sc[k].length);
+async function shareQuestions(sc){ // lets everyone this page is shared with use the same questions
+  if(!Store.db||!hasQ(sc))return false;
+  try{await Store.db.doc("shared/scales").set(sc);Store.shared=sc;return true;}catch(e){return false;}
+}
+async function initStore(){
+  let db=null,user=null,uid=null;
+  try{
+    for(let i=0;i<15&&!(window.claude&&window.claude.use);i++) await new Promise(r=>setTimeout(r,100));
+    if(window.claude&&window.claude.use){[db,user]=await Promise.all([window.claude.use("db"),window.claude.use("user")]);}
+    if(user){uid=await user.id();Store.owner=!!(await user.isOwner());}
+  }catch(e){}
+  Store.db=db;
+  if(db){try{const s=await timeout(db.doc("shared/scales").get(),8000);if(s.exists)Store.shared=JSON.parse(JSON.stringify(s.data()));}catch(e){}}
+  if(db&&uid){
+    try{
+      const col=db.collection("data/users/"+uid);
+      const snap=await timeout(col.limit(1000).get(),10000);
+      snap.docs.forEach(d=>{if(d.exists)Store.docs[d.id]=JSON.parse(JSON.stringify(d.data()));});
+      Store.col=col;Store.mode="account";
+      if(!Object.keys(Store.docs).length){const l=readLocal();if(Object.keys(l).length){Store.docs=l;Store.mode="device";}}
+      if(Store.mode==="account"&&Store.owner&&hasQ(Store.docs.scales)&&JSON.stringify(Store.docs.scales)!==JSON.stringify(Store.shared))shareQuestions(Store.docs.scales);
+      return;
+    }catch(e){}
+  }
+  Store.docs=readLocal();Store.mode="device";
+}
+function toDevice(){Store.mode="device";writeLocal();paintStatus();}
+async function saveDoc(id,data){
+  Store.docs[id]=data;
+  if(Store.mode==="account"){
+    try{await Store.col.doc(id).set(data);Store.wrote=true;return true;}
+    catch(e){
+      if(!Store.wrote&&e&&e.code!=="unavailable"&&e.code!=="resource_exhausted"){toDevice();return true;}
+      delete Store.docs[id];toast("That did not save. Check your connection and try again.");return false;
+    }
+  }
+  if(!writeLocal()){toast("This browser would not store that. Copy a backup from Setup.");return false;}
+  return true;
+}
+async function removeDoc(id){
+  const old=Store.docs[id];delete Store.docs[id];
+  if(Store.mode==="account"){try{await Store.col.doc(id).delete();}catch(e){Store.docs[id]=old;toast("That did not delete. Try again.");return false;}}
+  else writeLocal();
+  return true;
+}
+function paintStatus(){
+  const s=$("#status"),b=$("#banner");
+  if(Store.mode==="account"){s.innerHTML='<span class="dot ok"></span><span>Private to your account</span>';b.innerHTML="";}
+  else if(Store.mode==="device"){s.innerHTML='<span class="dot dev"></span><span>Saved on this device only</span>';
+    b.innerHTML='<div class="banner">Everything you write stays in this browser on this device. Nobody else who opens this page can read it. It will not follow you to a new phone, so copy a backup from Setup once in a while.</div>';}
+}
+const entries=t=>Object.entries(Store.docs).filter(([k,v])=>v&&v.t===t&&(t!=="q"||SCALES[v.scale])).map(([k,v])=>({id:k,...v})).sort((a,b)=>a.ts-b.ts);
+function items(k){const own=(Store.docs.scales||{})[k];if(Array.isArray(own)&&own.length)return own;const sh=(Store.shared||{})[k];return Array.isArray(sh)?sh:[];}
+const ready=k=>items(k).length>0;
+const hidden=k=>(((Store.docs.prefs||{}).hide)||[]).includes(k);
+const shown=()=>Object.keys(SCALES).filter(k=>!hidden(k));
+// once any questionnaire is loaded, ones without questions stay out of the way
+const active=()=>{const a=shown(),r=a.filter(k=>ready(k)||entries("q").some(e=>e.scale===k));return r.length?r:a;};
+const maxOf=(k,n)=>(n||SCALES[k].n)*(SCALES[k].opts.length-1);
+
+/* ---------- wheel ---------- */
+const UI={sel:[],fam:null,note:"",taking:null,answers:[],about:"",result:null,confirm:null,mv:{act:null,mins:20,eff:null},idea:null};
+const levelOf=f=>{const id=UI.sel.find(x=>WORD[x]&&WORD[x].f===f);return id?+id.split("-")[1]:null;};
+function wheelSVG(){
+  const C=220,ri=64,ro=212,pt=(r,a)=>[C+r*Math.cos(a*Math.PI/180),C+r*Math.sin(a*Math.PI/180)];
+  let out="";
+  FAMILIES.forEach((f,i)=>{
+    const a0=-112.5+i*45,a1=a0+45,am=a0+22.5,[x1,y1]=pt(ro,a0),[x2,y2]=pt(ro,a1),[x3,y3]=pt(ri,a1),[x4,y4]=pt(ri,a0),[ex,ey]=pt(166,am),[wx,wy]=pt(110,am);
+    const lv=levelOf(f.id),on=lv!=null;
+    out+=`<g class="sec${on?" sel":""}${UI.fam===f.id?" act":""}" data-f="${f.id}" role="button" tabindex="0" aria-pressed="${on}" aria-label="${f.words[1]}, the ${f.an}${on?", picked: "+f.words[lv]:""}">`+
+      `<path d="M${x1} ${y1}A${ro} ${ro} 0 0 1 ${x2} ${y2}L${x3} ${y3}A${ri} ${ri} 0 0 0 ${x4} ${y4}Z" style="fill:${on?`var(--e-${f.id})`:`color-mix(in srgb,var(--e-${f.id}) var(--tint),var(--surface))`}"/>`+
+      `<text x="${ex}" y="${ey}" font-size="${on?46:38}">${f.a}</text><text class="w" x="${wx}" y="${wy}">${f.words[1]}</text></g>`;
+  });
+  const act=UI.fam&&FAM[UI.fam];
+  out+=`<circle class="hub" cx="${C}" cy="${C}" r="${ri-6}"/>`+(act?`<text x="${C}" y="${C}" font-size="62" text-anchor="middle" dominant-baseline="central">${act.a}</text>`:`<text class="hubt" x="${C}" y="${C-9}">tap an</text><text class="hubt" x="${C}" y="${C+9}">animal</text>`);
+  return `<svg class="wheel" viewBox="0 0 440 440" role="group" aria-label="Emotion wheel with eight animals">${out}</svg>`;
+}
+function sizesHTML(){
+  if(!UI.fam)return "";const f=FAM[UI.fam],lv=levelOf(f.id),fs=[1.3,1.9,2.6],lab=["a little","medium","huge"];
+  return `<div><p class="lab" style="margin-bottom:6px">How big is the ${f.an} right now?</p><div class="sizes">${f.words.map((w,i)=>`<button data-lv="${i}" class="${lv===i?"on":""}" aria-pressed="${lv===i}"><i style="font-size:${fs[i]}rem" aria-hidden="true">${f.a}</i><span><b>${w}</b><br><span class="small">${lab[i]}</span></span></button>`).join("")}</div></div>`;
+}
+const chip=id=>WORD[id]?`<span class="chip">${WORD[id].a} ${WORD[id].w}</span>`:"";
+
+/* ---------- views ---------- */
+function viewToday(){
+  const list=entries("c").slice(-5).reverse();
+  return `<section class="card">
+    <div><h2>Which animals showed up today?</h2><p class="muted small">Tap every one that fits, then say how big it feels.</p></div>
+    <div class="wheelbox">${wheelSVG()}</div>
+    ${sizesHTML()}
+    <div class="chips" aria-live="polite">${UI.sel.map(chip).join("")||'<span class="muted small">Nothing picked yet</span>'}</div>
+    <div><label class="lab" for="note">Caption for today (optional)</label><textarea id="note" placeholder="What happened? What did you eat, play, shoot?">${esc(UI.note)}</textarea></div>
+    <div class="row"><button class="primary" id="saveCheck" ${UI.sel.length?"":"disabled"}>Save this snapshot 📸</button></div>
+  </section>
+  <section class="card"><h2>Camera roll</h2>
+    ${list.length?list.map(e=>`<div class="entry"><div class="row between"><span class="small muted">${fmtFull(e.ts)}</span>${delBtn(e.id)}</div><div class="chips">${(e.emotions||[]).map(chip).join("")}</div>${e.note?`<p class="note">${esc(e.note)}</p>`:""}</div>`).join("")
+      :'<p class="muted">Your snapshots land here once you save the first one.</p>'}
+  </section>`;
+}
+const delBtn=id=>UI.confirm===id?`<span class="row"><button class="quiet" data-del="${id}" style="color:var(--warn)">Delete for good</button><button class="quiet" data-cancel="1">Keep</button></span>`:`<button class="quiet" data-ask="${id}">Delete</button>`;
+
+const counted=e=>e.effort>=1;
+const reward=()=>{const r=(Store.docs.prefs||{}).reward;return r==null?"$10":r;};
+const stampLine=(hard,now)=>"Vibe Check, week of "+fmtDay(now)+": "+hard.length+" stamp"+(hard.length===1?"":"s")+" ("+hard.map(e=>(ACT[e.act]||ACT.other)[2]+" "+e.mins+" min").join(", ")+")."+(hard.length>=3&&reward()?" Reward: "+reward():"");
+function makeCard(hard,now){
+  const c=document.createElement("canvas");c.width=900;c.height=560;const x=c.getContext("2d");
+  x.fillStyle="#eef4e3";x.fillRect(0,0,900,560);
+  x.beginPath();x.moveTo(66,30);x.arcTo(870,30,870,530,36);x.arcTo(870,530,30,530,36);x.arcTo(30,530,30,30,36);x.arcTo(30,30,870,30,36);x.closePath();
+  x.fillStyle="#fffdf7";x.fill();x.lineWidth=6;x.strokeStyle="#1c2a1e";x.stroke();
+  x.fillStyle="#1c2a1e";x.textBaseline="alphabetic";x.font="700 56px Fredoka, 'Trebuchet MS', sans-serif";x.fillText("Vibe Check",70,118);
+  x.font="500 30px 'DM Sans', sans-serif";x.fillText("Week of "+fmtDay(now)+" · "+hard.length+" of 3 stamps"+(hard.length>3?" and then some":""),70,168);
+  hard.slice(0,5).forEach((e,i)=>{const cx=140+i*160,cy=300;x.beginPath();x.arc(cx,cy,68,0,Math.PI*2);x.fillStyle=i%2?"#ff8fb3":"#8fc463";x.fill();x.stroke();
+    x.textAlign="center";x.textBaseline="middle";x.font="64px sans-serif";x.fillStyle="#1c2a1e";x.fillText((ACT[e.act]||ACT.other)[1],cx,cy+4);});
+  x.textAlign="left";x.textBaseline="alphabetic";x.fillStyle="#1c2a1e";x.font="700 40px Fredoka, 'Trebuchet MS', sans-serif";
+  x.fillText(hard.length>=3?(reward()?"Reward unlocked: "+reward():"Three stamps done!"):(3-hard.length)+" to go",70,450);
+  x.font="400 24px 'DM Sans', sans-serif";x.fillStyle="#56655a";let t=hard.map(e=>(ACT[e.act]||ACT.other)[2]+" "+e.mins+" min").join(" · ");if(t.length>62)t=t.slice(0,60)+"…";x.fillText(t,70,495);
+  return c.toDataURL("image/png");
+}
+function viewMove(){
+  const now=weekStart(Date.now()),wk=entries("m").filter(e=>weekStart(e.ts)===now),hard=wk.filter(counted),easy=wk.length-hard.length,slots=Math.max(3,hard.length),m=UI.mv;
+  const msg=["Three stamps to collect this week. Any day, any order.","One down. Nice.","Two in. One to go.","All three. Anything more is a bonus."][Math.min(3,hard.length)];
+  return `<section class="card"><div><h2>This week's stamps</h2><p class="muted small">${msg}</p></div>
+    <div class="stamps">${Array.from({length:slots},(_,i)=>hard[i]?`<div class="stamp got" title="${esc((ACT[hard[i].act]||ACT.other)[2])}">${(ACT[hard[i].act]||ACT.other)[1]}</div>`:`<div class="stamp">${i+1}</div>`).join("")}</div>
+    ${reward()?(hard.length>=3?`<div class="idea"><strong>Reward unlocked: ${esc(reward())}</strong><br>${Store.docs["r-"+now.toString(36)]?"Collected for this week ✓":`Show this screen to collect it. <button data-collect="${now}" style="margin-left:6px">Mark collected</button>`}</div>`:`<p style="text-align:center;font-weight:700">3 stamps this week = ${esc(reward())}</p>`):""}
+    ${hard.length?(UI.card?`<img src="${UI.card}" alt="${esc(stampLine(hard,now))}" style="max-width:100%;border-radius:12px;display:block">
+      <p class="small muted">Press and hold the picture to save or share it, or just screenshot it, then text it to Mom. It shows your stamps only, nothing about your feelings.</p>
+      <div class="row"><button id="copyLine">Copy as a text message instead</button></div>`:`<div class="row" style="justify-content:center"><button id="mkCard">Make a card to send Mom 📸</button></div>`):""}
+    <p class="small muted">A stamp is anything that gets you breathing hard. Weeks start Monday and a missed week just starts fresh.${easy?` You also logged ${easy} easy session${easy>1?"s":""} this week.`:""}</p></section>
+  <section class="card"><div class="row between"><h2>Not sure what to do?</h2><button id="shuffle">Shuffle 🎲</button></div>
+    ${UI.idea!=null?`<div class="idea">${IDEAS[UI.idea]}</div>`:'<p class="muted small">Short ideas that fit around homework.</p>'}</section>
+  <section class="card"><h2>I moved!</h2>
+    <div><p class="lab">What was it?</p><div class="pick">${ACTS.map(a=>`<button data-act="${a[0]}" class="${m.act===a[0]?"on":""}" aria-pressed="${m.act===a[0]}">${a[1]} ${a[2]}</button>`).join("")}</div></div>
+    <div><p class="lab">How long?</p><div class="pick">${[10,20,30,45,60].map(n=>`<button data-mins="${n}" class="${m.mins===n?"on":""}" aria-pressed="${m.mins===n}">${n} min</button>`).join("")}</div></div>
+    <div><p class="lab">How hard did it feel?</p><div class="eff">${EFFORT.map((e,i)=>`<button data-eff="${i}" class="${m.eff===i?"on":""}" aria-pressed="${m.eff===i}"><b>${e[0]}</b>${e[1]}</button>`).join("")}</div></div>
+    <div class="row"><button class="primary" id="saveMove" ${m.act&&m.eff!=null?"":"disabled"}>Stamp it</button></div></section>
+  ${wk.length?`<section class="card"><h2>Logged this week</h2>${wk.slice().reverse().map(e=>{const a=ACT[e.act]||ACT.other;return `<div class="entry"><div class="row between"><span>${a[1]} ${a[2]} · ${e.mins} min · ${EFFORT[e.effort][0]}</span>${delBtn(e.id)}</div><span class="small muted">${fmtFull(e.ts)}</span></div>`;}).join("")}</section>`:""}`;
+}
+
+function viewScales(){
+  if(UI.result) return viewResult();
+  if(UI.taking) return viewTake();
+  return `<p class="muted small">The same check-ups your therapist uses. Once a week is plenty.</p>`+active().map(k=>{
+    const s=SCALES[k],n=items(k).length,es=entries("q").filter(e=>e.scale===k),last=es[es.length-1];
+    return `<section class="card"><div class="row between"><div><h2>${s.short} check-up</h2><p class="muted small">${n?`${n} quick taps`:s.name}</p></div>
+      ${ready(k)?`<button class="primary" data-take="${k}">Start</button>`:`<a class="btn" href="#setup">Add the questions</a>`}</div>
+      <p class="small">${last?`Last time, ${fmtDay(last.ts)}: <strong>${last.total}</strong> · ${esc(band(k,last.total))}`:'<span class="muted">Not taken yet</span>'}</p></section>`;
+  }).join("");
+}
+function viewTake(){
+  const k=UI.taking,s=SCALES[k],q=items(k);
+  return `<section class="card"><div><h2>${s.name}</h2><p class="muted small">${s.prompt} There are no right answers.</p></div>
+    ${k==="rel"?`<div><label class="lab" for="about">Who is this about? (optional)</label><input type="text" id="about" value="${esc(UI.about)}" maxlength="60"></div>`:""}
+    <form id="qform">${q.map((t,i)=>`<fieldset><legend>${i+1}. ${esc(t)}</legend><div class="opts">${s.opts.map((o,v)=>`<label><input type="radio" name="q${i}" id="q${i}_${v}" value="${v}" ${UI.answers[i]===v?"checked":""}><span>${v} · ${o}</span></label>`).join("")}</div></fieldset>`).join("")}</form>
+    <div class="sticky row between"><span id="progress" class="small"></span><span class="row"><button data-quit="1">Cancel</button><button class="primary" id="saveScale" disabled>Save</button></span></div>
+    <p class="muted small">${s.credit}</p></section>`;
+}
+function paintProgress(){
+  const k=UI.taking;if(!k||!$("#progress"))return;const n=items(k).length,done=UI.answers.filter(v=>v!=null).length,tot=UI.answers.reduce((a,v)=>a+(v||0),0);
+  $("#progress").innerHTML=`<strong>${done} of ${n}</strong> · total so far ${tot}`;$("#saveScale").disabled=done<n;
+}
+function viewResult(){
+  const r=UI.result,s=SCALES[r.scale];
+  return `<section class="card"><h2>Done. Thanks for being honest.</h2>
+    <div class="tiles"><div class="tile"><div class="k">${s.short} score, out of ${r.max}</div><div class="v">${r.total}</div></div>
+    <div class="tile"><div class="k">On the printed key</div><div style="font-weight:700;font-size:1.05rem">${esc(band(r.scale,r.total))}</div></div></div>
+    <p class="small muted">A score is a snapshot of one week. It is something to bring to your therapist, and it changes.${r.n!==s.n?` The key was written for the ${s.n}-question form and you answered ${r.n}.`:""}</p>
+    ${r.care?`<div class="banner care"><strong>You marked thoughts that life is not worth living.</strong> Please tell your therapist or an adult you trust today. If you might act on those thoughts, call or text 988 now, or call 911.</div>`:""}
+    <details><summary class="small">See the full key</summary><div class="tablebox"><table><thead><tr><th>Total score</th><th>Level</th></tr></thead><tbody>${s.bands.map(b=>`<tr><td>${b[0]} to ${b[1]}</td><td>${b[2]}</td></tr>`).join("")}</tbody></table></div></details>
+    <div class="row"><a class="btn" href="#trends" data-done="1">See trends</a><button data-done="1">Done</button></div></section>`;
+}
+
+/* ---------- stats ---------- */
+function weekly(es){
+  const m=new Map();es.forEach(e=>{const w=weekStart(e.ts);const o=m.get(w)||{sum:0,n:0};o.sum+=e.total;o.n++;m.set(w,o);});
+  return [...m.entries()].sort((a,b)=>b[0]-a[0]).map(([w,o])=>({w,avg:o.sum/o.n,n:o.n,prev:m.has(prevWeek(w))?m.get(prevWeek(w)).sum/m.get(prevWeek(w)).n:null}));
+}
+function deltaPill(k,d){
+  if(d==null) return '<span class="muted">nothing the week before</span>';
+  if(Math.abs(d)<0.05) return '<span class="pill">no change</span>';
+  const good=(SCALES[k].better==="lower")===(d<0);
+  return `<span class="pill ${good?"good":"warn"}">${d<0?"▼ down":"▲ up"} ${r1(Math.abs(d))} · ${good?"better":"tougher week"}</span>`;
+}
+function lineChart(k,es,mx){
+  const s=SCALES[k],W=640,H=240,L=36,R=44,T=16,B=30,x0=es[0].ts,x1=es[es.length-1].ts;
+  const X=t=>x1===x0?(L+(W-R))/2:L+(t-x0)/(x1-x0)*(W-L-R),Y=v=>T+(1-v/mx)*(H-T-B);
+  const ticks=[0,mx/3,2*mx/3,mx],pts=es.map(e=>[X(e.ts),Y(e.total)]);
+  const path=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join("");
+  const area=path+`L${pts[pts.length-1][0].toFixed(1)} ${Y(0)}L${pts[0][0].toFixed(1)} ${Y(0)}Z`,last=pts[pts.length-1];
+  return `<div class="chartbox"><svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${s.short} score over time, latest ${es[es.length-1].total} out of ${mx}">
+    ${ticks.map(t=>`<line x1="${L}" x2="${W-R}" y1="${Y(t)}" y2="${Y(t)}" stroke="var(--line)" stroke-width="1"/><text x="${L-6}" y="${Y(t)+4}" text-anchor="end">${t}</text>`).join("")}
+    ${es.length>1?`<path d="${area}" fill="var(--chart)" opacity=".12"/><path d="${path}" fill="none" stroke="var(--chart)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`:""}
+    ${pts.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="${i===pts.length-1?6:4.5}" fill="var(--chart)" stroke="var(--surface)" stroke-width="2"/>`).join("")}
+    <text class="val" x="${last[0]+10}" y="${last[1]+4}">${es[es.length-1].total}</text>
+    <text x="${X(x0)}" y="${H-8}" text-anchor="${x1===x0?"middle":"start"}">${fmtDay(x0)}</text>${x1!==x0?`<text x="${W-R}" y="${H-8}" text-anchor="end">${fmtDay(x1)}</text>`:""}
+    ${pts.map((p,i)=>`<circle class="hit" cx="${p[0]}" cy="${p[1]}" r="16" fill="transparent" data-tip="${esc(fmtDay(es[i].ts)+": "+es[i].total+" · "+band(k,es[i].total))}" data-x="${p[0]/W*100}" data-y="${p[1]/H*100}"/>`).join("")}
+  </svg><div class="tip"></div></div>`;
+}
+function scaleTrend(k){
+  const s=SCALES[k],es=entries("q").filter(e=>e.scale===k);
+  if(!es.length) return `<section class="card"><h2>${s.short}</h2><p class="muted">Nothing yet. Do the ${s.short.toLowerCase()} check-up and your line starts here.</p></section>`;
+  const wk=weekly(es),last=es[es.length-1],now=weekStart(Date.now()),tw=wk.find(w=>w.w===now);
+  const mx=Math.max(...es.map(e=>maxOf(k,(e.answers||[]).length)));
+  return `<section class="card"><div><h2>${s.short}</h2><p class="muted small">${s.name}, 0 to ${mx}. ${s.better==="lower"?"Lower is better.":"Higher is better."}</p></div>
+    <div class="tiles">
+      <div class="tile"><div class="k">Latest, ${fmtDay(last.ts)}</div><div class="v">${last.total}</div><div class="small">${esc(band(k,last.total))}</div></div>
+      <div class="tile"><div class="k">This week vs last</div><div style="margin-top:6px">${tw?deltaPill(k,tw.prev==null?null:tw.avg-tw.prev):'<span class="muted">not taken this week</span>'}</div></div>
+    </div>
+    ${lineChart(k,es,mx)}
+    <div class="tablebox"><table><thead><tr><th>Week of</th><th class="num">Average</th><th class="num">Times</th><th>Vs week before</th></tr></thead><tbody>
+      ${wk.slice(0,8).map(w=>`<tr><td>${fmtDay(w.w)}</td><td class="num">${r1(w.avg)}</td><td class="num">${w.n}</td><td>${deltaPill(k,w.prev==null?null:w.avg-w.prev)}</td></tr>`).join("")}</tbody></table></div>
+    <details><summary class="small">Every score (${es.length})</summary><div class="tablebox"><table><tbody>${es.slice().reverse().map(e=>`<tr><td>${fmtFull(e.ts)}</td><td class="num">${e.total}</td><td>${esc(band(k,e.total))}${e.about?" · "+esc(e.about):""}</td><td>${delBtn(e.id)}</td></tr>`).join("")}</tbody></table></div></details>
+  </section>`;
+}
+function emotionTrend(){
+  const cs=entries("c"),now=weekStart(Date.now()),pw=prevWeek(now);
+  if(!cs.length) return `<section class="card"><h2>Animals</h2><p class="muted">No snapshots yet. Save one on the Today tab and your week gets counted here.</p></section>`;
+  const cnt=w=>{const o={};FAMILIES.forEach(f=>o[f.id]=0);cs.filter(e=>weekStart(e.ts)===w).forEach(e=>(e.emotions||[]).forEach(id=>{if(WORD[id])o[WORD[id].f]++;}));return o;};
+  const a=cnt(now),b=cnt(pw),na=cs.filter(e=>weekStart(e.ts)===now).length,nb=cs.filter(e=>weekStart(e.ts)===pw).length;
+  const mx=Math.max(1,...Object.values(a),...Object.values(b));
+  return `<section class="card"><div><h2>Animals</h2><p class="muted small">How often each one showed up. Weeks run Monday to Sunday.</p></div>
+    <div class="tiles"><div class="tile"><div class="k">Snapshots this week</div><div class="v">${na}</div></div><div class="tile"><div class="k">Last week</div><div class="v">${nb}</div></div></div>
+    <div class="legend"><span><span class="sw" style="background:var(--chart)"></span>This week</span><span><span class="sw" style="background:var(--prev)"></span>Last week</span></div>
+    <div class="bars">${FAMILIES.map(f=>`<span>${f.a} ${f.words[1]}</span>
+      <div class="pair"><div class="bar"><i style="width:${a[f.id]/mx*85}%"></i><b>${a[f.id]}</b></div><div class="bar prev"><i style="width:${b[f.id]/mx*85}%"></i><b>${b[f.id]}</b></div></div>`).join("")}</div>
+  </section>`;
+}
+function moveTrend(){
+  const ms=entries("m");if(!ms.length) return `<section class="card"><h2>Movement</h2><p class="muted">No stamps yet. Log anything on the Move tab and the weeks line up here.</p></section>`;
+  let w=weekStart(Date.now());const rows=[];
+  for(let i=0;i<6;i++){const wk=ms.filter(e=>weekStart(e.ts)===w),h=wk.filter(counted).length;rows.push({w,h,mins:wk.reduce((s,e)=>s+(e.mins||0),0)});w=prevWeek(w);}
+  return `<section class="card"><div><h2>Movement</h2><p class="muted small">Stamps per week. The dashed line is three.${entries("r").length?` Rewards collected so far: ${entries("r").length}.`:""}</p></div>
+    <div class="bars">${rows.map(r=>`<span>${fmtDay(r.w)}</span><div class="row" style="flex-wrap:nowrap"><div class="goalbar" style="flex:1"><i style="width:${Math.min(r.h,6)/6*100}%"></i><u></u></div><b style="font-size:.8rem;white-space:nowrap">${r.h} · ${r.mins} min</b></div>`).join("")}</div></section>`;
+}
+const viewTrends=()=>active().map(scaleTrend).join("")+emotionTrend()+moveTrend();
+
+/* ---------- setup ---------- */
+function viewSetup(){
+  const mine=hasQ(Store.docs.scales),fromShared=!mine&&hasQ(Store.shared);
+  return `<section class="card"><div><h2>Questions for the check-ups</h2>
+    <p class="small muted">${fromShared?"The questions are already loaded for you. Nothing to do here.":"The Burns questionnaires are copyrighted, so this page does not carry their wording. Choose the PDFs from the therapist and the questions are read from that copy. One person does this once."}</p></div>
+    ${fromShared?"":`<div class="row"><input type="file" id="pdfs" accept="application/pdf,.pdf" multiple style="max-width:100%"></div><p class="small" id="pdfmsg" aria-live="polite"></p>`}</section>
+  ${shown().map(k=>{const s=SCALES[k],q=items(k);return `<section class="card"><div class="row between"><h3>${s.name}</h3><span class="pill ${q.length?"good":"warn"}" id="cnt-${k}">${q.length} questions</span></div>
+    <div><label class="lab" for="ta-${k}">One question per line, in the order on the printed form (${s.n} there)</label><textarea id="ta-${k}" data-k="${k}" rows="5" spellcheck="false">${esc(q.join("\n"))}</textarea></div>
+    <div class="row"><button data-savek="${k}">Save questions</button></div></section>`;}).join("")}
+  <section class="card"><h2>Weekly reward</h2><p class="small muted">What three stamps in a week earn. Agree on it together, then type it here. Leave it empty for no reward.</p>
+    <div><label class="lab" for="reward">Reward for 3 stamps</label><input type="text" id="reward" maxlength="60" value="${esc(reward())}"></div>
+    <div class="row"><button id="saveReward">Save reward</button></div></section>
+  <section class="card"><h2>Give the questions to someone else</h2>
+    <p class="small muted">${Store.mode==="account"&&hasQ(Store.shared)?"Anyone you share this page with who is signed in to Claude gets your saved questions automatically. ":""}For anyone else, copy the question code and have them paste it into the box below on their own device. It holds the questions only, none of your entries.</p>
+    <div class="row"><button id="copyQ" ${ready("dep")||ready("anx")?"":"disabled"}>Copy question code</button></div></section>
+  <section class="card"><h2>Paste a code or a backup</h2>
+    <div><label class="lab" for="restore">Question code or backup text</label><textarea id="restore" rows="3" spellcheck="false"></textarea></div>
+    <div class="row"><button id="doRestore" class="primary">Load it</button><button id="copyBackup">Copy a backup of my entries</button></div>
+    <p class="small muted">A backup holds everything you have written. Keep it somewhere only you can open.</p></section>`;
+}
+/* PDF text -> question lists */
+function cleanItem(t){return t.split(/CATEGORY\s+[IVX]+|\(Next Page\)|\[p\.|Name\s*:|Symptom List|Add up your total/i)[0].replace(/\s+/g," ").trim();}
+function numbered(seg){return seg.split(/(?:^|\s)\d{1,2}\.\s+/).slice(1).map(cleanItem).filter(Boolean);}
+function parseForms(text){
+  const T=text.replace(/\r/g,""),out={};
+  const di=T.search(/DEPRESSION\s+CHECKLIST/i),ai=T.search(/ANXIETY\s+INVENTORY/i);
+  if(di>=0){const seg=T.slice(di,ai>di?ai:undefined);out.dep=numbered(seg.split(/Add up your total/i)[0]);}
+  if(ai>=0){const seg=T.slice(ai,di>ai?di:undefined);out.anx=numbered(seg.split(/Add up your total/i)[0]);}
+  const ri=T.search(/Relationship\s+Satisfaction\s+Scale/i);
+  if(ri>=0){
+    const head=T.slice(ri).split(/Total\s+score\s+on\s+items/i)[0];let m,idx=-1;const re=/Very\s+Satisfied/gi;
+    while((m=re.exec(head)))idx=m.index+m[0].length;
+    if(idx>=0){const res=[];head.slice(idx).split("\n").map(l=>l.trim()).filter(Boolean).forEach(l=>{if(res.length&&/^[a-z]/.test(l))res[res.length-1]+=" "+l;else res.push(l);});out.rel=res.map(x=>x.replace(/\s+/g," "));}
+  }
+  return out;
+}
+async function pdfText(file){
+  const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;let t="";
+  for(let p=1;p<=pdf.numPages;p++){const c=await(await pdf.getPage(p)).getTextContent();t+=c.items.map(i=>i.str+(i.hasEOL?"\n":"")).join("")+"\n";}
+  return t;
+}
+async function importPDFs(files){
+  const msg=$("#pdfmsg");
+  if(!window.pdfjsLib){msg.textContent="The PDF reader did not load. Type or paste the questions into the boxes below instead.";return;}
+  msg.textContent="Reading…";
+  try{pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";}catch(e){}
+  const found={};
+  for(const f of files){try{Object.assign(found,parseForms(await pdfText(f)));}catch(e){}}
+  const got=Object.keys(found).filter(k=>SCALES[k]&&found[k].length);
+  if(!got.length){msg.textContent="No questionnaire text was found in that file. If it is a scan, type the questions into the boxes below.";return;}
+  got.forEach(k=>{const ta=$("#ta-"+k);ta.value=found[k].join("\n");countTa(ta);});
+  msg.textContent="Found "+got.map(k=>SCALES[k].short+" ("+found[k].length+")").join(", ")+". Check the wording against the paper copy, then press Save questions under each one.";
+}
+function countTa(ta){const k=ta.dataset.k,n=ta.value.split("\n").map(s=>s.trim()).filter(Boolean).length,el=$("#cnt-"+k);el.textContent=n+" questions";el.className="pill "+(n?"good":"warn");}
+async function copyText(txt,ok){try{await navigator.clipboard.writeText(txt);toast(ok);}catch(e){$("#restore").value=txt;toast("Copying was blocked. The text is in the box; select and copy it.");}}
+
+/* ---------- render + events ---------- */
+const VIEWS={today:viewToday,move:viewMove,scales:viewScales,trends:viewTrends,setup:viewSetup};
+let VIEW=null;
+function route(){if(VIEW)return VIEW;let h="";try{h=location.hash.slice(1);}catch(e){}return VIEWS[h]?h:"today";}
+function go(v){if(!VIEWS[v])return;VIEW=v;UI.confirm=null;if(v!=="scales"){UI.taking=null;UI.result=null;}try{if(location.hash.slice(1)!==v)location.hash=v;}catch(e){}render();try{window.scrollTo(0,0);}catch(e){}}
+function render(){
+  const r=route();
+  document.querySelectorAll("nav a").forEach(a=>a.getAttribute("href")==="#"+r?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current"));
+  if(Store.mode==="loading"){$("#main").innerHTML='<section class="card"><p class="muted">Opening your journal…</p></section>';return;}
+  $("#main").innerHTML=VIEWS[r]();
+  if(r==="scales")paintProgress();
+}
+function keepNote(){if($("#note"))UI.note=$("#note").value;}
+function pickFamily(f){keepNote();UI.fam=UI.fam===f&&levelOf(f)==null?null:f;render();const g=document.querySelector('.sec[data-f="'+f+'"]');if(g&&document.activeElement===document.body)g.focus({preventScroll:true});}
+const main=$("#main");
+main.addEventListener("click",async ev=>{
+  const t=ev.target,g=t.closest(".sec");
+  if(g){pickFamily(g.dataset.f);return;}
+  const b=t.closest("button,a");if(!b)return;
+  if(b.tagName==="A"){const h=b.getAttribute("href")||"";if(h.charAt(0)==="#"){ev.preventDefault();if(b.dataset.done)UI.result=null;go(h.slice(1));}return;}
+  if(b.dataset.lv!=null){keepNote();const f=UI.fam,lv=+b.dataset.lv,cur=levelOf(f);UI.sel=UI.sel.filter(x=>WORD[x].f!==f);if(cur!==lv)UI.sel.push(f+"-"+lv);render();}
+  else if(b.id==="saveCheck"){b.disabled=true;const ts=Date.now();
+    if(await saveDoc("c-"+ts.toString(36),{t:"c",ts,emotions:UI.sel.slice(),note:($("#note").value||"").trim().slice(0,4000)})){UI.sel=[];UI.fam=null;UI.note="";toast("Snapshot saved 📸");}render();}
+  else if(b.dataset.ask){keepNote();UI.confirm=b.dataset.ask;render();}
+  else if(b.dataset.cancel){keepNote();UI.confirm=null;render();}
+  else if(b.dataset.del){keepNote();UI.confirm=null;UI.card=null;await removeDoc(b.dataset.del);render();}
+  else if(b.id==="shuffle"){let i;do{i=Math.floor(Math.random()*IDEAS.length);}while(i===UI.idea);UI.idea=i;render();}
+  else if(b.dataset.act){UI.mv.act=b.dataset.act;render();}
+  else if(b.dataset.mins){UI.mv.mins=+b.dataset.mins;render();}
+  else if(b.dataset.eff!=null){UI.mv.eff=+b.dataset.eff;render();}
+  else if(b.dataset.collect){const w=+b.dataset.collect;if(await saveDoc("r-"+w.toString(36),{t:"r",ts:Date.now(),w,reward:reward()}))toast("Collected. You earned it.");render();}
+  else if(b.id==="saveReward"){const p=Object.assign({},Store.docs.prefs||{});p.reward=$("#reward").value.trim().slice(0,60);if(await saveDoc("prefs",p))toast(p.reward?"Reward saved":"Reward turned off");}
+  else if(b.id==="mkCard"||b.id==="copyLine"){const now=weekStart(Date.now()),hard=entries("m").filter(e=>weekStart(e.ts)===now).filter(counted);
+    if(b.id==="mkCard"){try{UI.card=makeCard(hard,now);}catch(e){toast("The picture could not be made here. Take a screenshot instead.");}render();}
+    else{try{await navigator.clipboard.writeText(stampLine(hard,now));toast("Copied. Paste it into a message to Mom.");}catch(e){toast("Copying was blocked here. Screenshot the card instead.");}}}
+  else if(b.id==="saveMove"){b.disabled=true;const ts=Date.now(),m=UI.mv;
+    if(await saveDoc("m-"+ts.toString(36),{t:"m",ts,act:m.act,mins:m.mins,effort:m.eff})){toast(m.eff>=1?"Stamped! "+ACT[m.act][1]:"Logged. Easy days count as rest.");UI.mv={act:null,mins:20,eff:null};UI.card=null;}render();window.scrollTo(0,0);}
+  else if(b.dataset.take){UI.taking=b.dataset.take;UI.answers=new Array(items(UI.taking).length).fill(null);UI.about="";render();window.scrollTo(0,0);}
+  else if(b.dataset.quit){UI.taking=null;render();}
+  else if(b.id==="saveScale"){b.disabled=true;const k=UI.taking,ts=Date.now(),total=UI.answers.reduce((a,v)=>a+v,0),q=items(k);
+    const doc={t:"q",scale:k,ts,answers:UI.answers.slice(),total};const ab=$("#about")?$("#about").value.trim():"";if(ab)doc.about=ab;
+    const care=k==="dep"&&q.some((txt,i)=>/suicid|better off dead|not worth living/i.test(txt)&&UI.answers[i]>=1);
+    if(await saveDoc("q-"+ts.toString(36),doc)){UI.result={scale:k,total,care,n:q.length,max:maxOf(k,q.length)};UI.taking=null;}render();window.scrollTo(0,0);}
+  else if(b.dataset.done){UI.result=null;if(b.tagName==="BUTTON")render();}
+  else if(b.dataset.savek){const k=b.dataset.savek,list=$("#ta-"+k).value.split("\n").map(s=>s.trim()).filter(Boolean);
+    if(!list.length){toast("Add at least one question first.");return;}
+    const sc=Object.assign({},Store.shared||{},Store.docs.scales||{});sc[k]=list;
+    if(await saveDoc("scales",sc)){const sh=Store.mode==="account"&&await shareQuestions(sc);toast(sh?"Saved, and shared with people you share this page with":"Questions saved");}}
+  else if(b.id==="copyQ"){const q={};Object.keys(SCALES).forEach(k=>{if(ready(k))q[k]=items(k);});copyText(JSON.stringify({vibeQuestions:q}),"Question code copied. Send it to the other person.");}
+  else if(b.id==="copyBackup"){copyText(JSON.stringify(Store.docs),"Backup copied. Paste it somewhere private.");}
+  else if(b.id==="doRestore"){let d;try{d=JSON.parse($("#restore").value);}catch(e){}
+    if(!d||typeof d!=="object"||Array.isArray(d)){toast("That is not a question code or a backup from this journal.");return;}
+    if(d.vibeQuestions&&typeof d.vibeQuestions==="object"){const sc=Object.assign({},Store.docs.scales||{});
+      Object.keys(SCALES).forEach(k=>{const l=d.vibeQuestions[k];if(Array.isArray(l)&&l.length)sc[k]=l.map(x=>String(x).slice(0,400)).slice(0,60);});
+      if(Array.isArray(d.hide)){const pr=Object.assign({},Store.docs.prefs||{});pr.hide=d.hide.filter(k=>SCALES[k]);await saveDoc("prefs",pr);}
+      if(await saveDoc("scales",sc))toast("Questions loaded. The check-ups are ready.");render();return;}
+    let n=0;for(const [id,v] of Object.entries(d)){if(/^(scales|prefs|[cqmr]-[a-z0-9]+)$/.test(id)&&v&&typeof v==="object"){if(await saveDoc(id,v))n++;}}
+    toast("Restored "+n+" items");render();}
+});
+main.addEventListener("keydown",ev=>{const g=ev.target.closest&&ev.target.closest(".sec");if(g&&(ev.key===" "||ev.key==="Enter")){ev.preventDefault();pickFamily(g.dataset.f);}});
+main.addEventListener("change",ev=>{const t=ev.target;
+  if(t.type==="radio"&&UI.taking){UI.answers[+t.name.slice(1)]=+t.value;paintProgress();}
+  else if(t.id==="pdfs"&&t.files.length)importPDFs([...t.files]);});
+main.addEventListener("input",ev=>{const t=ev.target;if(t.id==="note")UI.note=t.value;else if(t.id==="about")UI.about=t.value;else if(t.dataset&&t.dataset.k)countTa(t);});
+main.addEventListener("submit",ev=>ev.preventDefault());
+main.addEventListener("pointermove",ev=>{const h=ev.target.closest&&ev.target.closest(".hit");document.querySelectorAll(".tip").forEach(x=>x.style.display="none");
+  if(h){const tip=h.closest(".chartbox").querySelector(".tip");tip.textContent=h.dataset.tip;tip.style.left=h.dataset.x+"%";tip.style.top=h.dataset.y+"%";tip.style.display="block";}});
+document.querySelector("nav").addEventListener("click",ev=>{const a=ev.target.closest("a");if(a){ev.preventDefault();go(a.getAttribute("href").slice(1));}});
+window.addEventListener("hashchange",()=>{let h="";try{h=location.hash.slice(1);}catch(e){}if(VIEWS[h]&&h!==VIEW)go(h);});
+render();
+initStore().then(()=>{paintStatus();render();});
+</script>
+</body>
+</html>
