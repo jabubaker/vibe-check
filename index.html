@@ -475,7 +475,7 @@ const viewTrends=()=>active().map(scaleTrend).join("")+emotionTrend()+moveTrend(
 
 /* ---------- calm: 4-7-8 breathing, zen sitting, yoga nidra ---------- */
 // Every practice starts tiny. Three finished sessions at a level unlock the next one.
-const LVN=[["🌱","Sprout"],["🍃","Leaf"],["🍵","Whisk"],["🎋","Bamboo"],["🏯","Temple"],["🌕","Moon"],["🗻","Mountain"]];
+const LVN=[["🌱","Sprout"],["🍃","Leaf"],["🍵","Whisk"],["🎋","Bamboo"],["🏯","Temple"],["🌕","Moon"],["🗻","Mountain"],["🌸","Blossom"],["⭐","Star"],["🌈","Rainbow"]];
 // A calm day = at least 5 minutes of calm, any mix. Five calm days in a week earns the calm reward.
 const UP=3,CGOAL=5,CMIN=300;
 const dayKey=ts=>{const d=new Date(ts);d.setHours(0,0,0,0);return d.getTime();};
@@ -532,7 +532,7 @@ function nidraSteps(lv){const out=[];NIDRA.forEach(([a,z,x,w])=>{if(lv<a||lv>z)r
 const nidraEst=lv=>nidraSteps(lv).reduce((t,s)=>t+s.w+(s.say?s.say.split(/\s+/).length/WPS:0),0);
 const nidraMins=lv=>Math.round(nidraEst(lv)/60);
 const PRACT={
- breath:{a:"🐳",name:"4\u20117\u20118 breathing",line:"Breathe in for 4, hold for 7, whoosh out for 8, like a whale. It slows your heart down in about a minute.",steps:[2,3,4,6,8],unit:(n,i)=>n+" rounds"},
+ breath:{a:"🐳",name:"4\u20117\u20118 breathing",line:"Breathe in for 4, hold for 7, whoosh out for 8, like a whale. It slows your heart down in about a minute.",steps:[2,3,4,6,8,12,16,20,26,32],unit:(n,i)=>n+" rounds · "+fmtSecs(5+n*19*UI.pace)},
  zen:{a:"🐸",name:"Zen sitting",line:"Sit still like a frog on a rock and count your breaths. When your mind wanders and you notice, that's one rep.",steps:[2,3,5,7,10,15,20],unit:(n,i)=>n+" min"},
  nidra:{a:"🦥",name:"Yoga nidra",line:"Lie down and let a voice walk you around your body. Like a nap, but you come out sharper. Great at bedtime.",steps:[0,1,2],unit:(n,i)=>"about "+nidraMins(i)+" min"}
 };
