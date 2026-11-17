@@ -136,6 +136,21 @@ td.num,th.num{text-align:right}
 .note{white-space:pre-wrap;overflow-wrap:anywhere}
 footer{font-size:.8125rem;color:var(--muted)}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:12px;font-size:.9rem;font-weight:500;display:none;z-index:5;max-width:calc(100% - 32px);text-align:center}
+/* calm */
+.mascot{font-size:2.6rem;line-height:1;flex:none}
+.ladder{display:flex;flex-wrap:wrap;gap:6px}
+.ladder button{font-size:.8rem;padding:6px 9px;line-height:1.25;text-align:center}
+.ladder small{font-weight:500;opacity:.85}
+.sess{align-items:center;text-align:center;min-height:68vh;justify-content:center}
+.orbbox{width:240px;height:240px;display:grid;place-items:center}
+.orb{width:230px;height:230px;border-radius:50%;background:radial-gradient(circle at 35% 30%,color-mix(in srgb,var(--matcha) 45%,var(--surface)),var(--matcha));border:3px solid var(--edge);box-shadow:4px 4px 0 var(--shadow);display:grid;place-items:center;font-size:3.2rem;transform:scale(.55);transition:transform .12s linear}
+.cue{font-family:var(--display);font-size:1.4rem;font-weight:600;min-height:2em}
+.cnt{font-family:var(--display);font-size:3rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;min-height:3rem}
+.ring{width:240px;height:240px;display:block}
+.ring text{font-family:var(--display);fill:var(--ink);text-anchor:middle;dominant-baseline:central}
+.drift{background:var(--sun);color:var(--on);font-size:1.05rem;padding:14px 20px}
+.nline{font-family:var(--display);font-size:1.35rem;font-weight:500;min-height:6.5em;max-width:30ch;display:grid;place-items:center}
+@media (prefers-reduced-motion:reduce){.orb{transition:none}}
 @media (prefers-reduced-motion:no-preference){.bar i,.goalbar i{transition:width .3s}.stamp.got{animation:pop .35s}@keyframes pop{from{scale:1.5}to{scale:1}}}
 </style>
 </head>
@@ -146,7 +161,7 @@ footer{font-size:.8125rem;color:var(--muted)}
     <div class="status" id="status"><span class="dot"></span><span>Opening your journal</span></div>
   </header>
   <nav aria-label="Sections"><div>
-  <a href="#today"><i aria-hidden="true">🦊</i>Today</a><a href="#move"><i aria-hidden="true">🥊</i>Move</a><a href="#scales"><i aria-hidden="true">📝</i>Check-ups</a><a href="#trends"><i aria-hidden="true">📈</i>Trends</a><a href="#setup"><i aria-hidden="true">⚙️</i>Setup</a>
+  <a href="#today"><i aria-hidden="true">🦊</i>Today</a><a href="#move"><i aria-hidden="true">🥊</i>Move</a><a href="#calm"><i aria-hidden="true">🔔</i>Calm</a><a href="#scales"><i aria-hidden="true">📝</i>Check-ups</a><a href="#trends"><i aria-hidden="true">📈</i>Trends</a><a href="#setup"><i aria-hidden="true">⚙️</i>Setup</a>
 </div></nav>
   <div id="banner"></div>
   <main id="main" class="wrap" style="padding:0"></main>
@@ -453,16 +468,219 @@ function moveTrend(){
   const ms=entries("m");if(!ms.length) return `<section class="card"><h2>Movement</h2><p class="muted">No stamps yet. Log anything on the Move tab and the weeks line up here.</p></section>`;
   let w=weekStart(Date.now());const rows=[];
   for(let i=0;i<6;i++){const wk=ms.filter(e=>weekStart(e.ts)===w),h=wk.filter(counted).length;rows.push({w,h,mins:wk.reduce((s,e)=>s+(e.mins||0),0)});w=prevWeek(w);}
-  return `<section class="card"><div><h2>Movement</h2><p class="muted small">Stamps per week. The dashed line is three.${entries("r").length?` Rewards collected so far: ${entries("r").length}.`:""}</p></div>
+  return `<section class="card"><div><h2>Movement</h2><p class="muted small">Stamps per week. The dashed line is three.${entries("r").filter(e=>e.kind!=="calm").length?` Rewards collected so far: ${entries("r").filter(e=>e.kind!=="calm").length}.`:""}</p></div>
     <div class="bars">${rows.map(r=>`<span>${fmtDay(r.w)}</span><div class="row" style="flex-wrap:nowrap"><div class="goalbar" style="flex:1"><i style="width:${Math.min(r.h,6)/6*100}%"></i><u></u></div><b style="font-size:.8rem;white-space:nowrap">${r.h} · ${r.mins} min</b></div>`).join("")}</div></section>`;
 }
-const viewTrends=()=>active().map(scaleTrend).join("")+emotionTrend()+moveTrend();
+const viewTrends=()=>active().map(scaleTrend).join("")+emotionTrend()+moveTrend()+calmTrend();
+
+/* ---------- calm: 4-7-8 breathing, zen sitting, yoga nidra ---------- */
+// Every practice starts tiny. Three finished sessions at a level unlock the next one.
+const LVN=[["🌱","Sprout"],["🍃","Leaf"],["🍵","Whisk"],["🎋","Bamboo"],["🏯","Temple"],["🌕","Moon"],["🗻","Mountain"]];
+// A calm day = at least 5 minutes of calm, any mix. Five calm days in a week earns the calm reward.
+const UP=3,CGOAL=5,CMIN=300;
+const dayKey=ts=>{const d=new Date(ts);d.setHours(0,0,0,0);return d.getTime();};
+const daySecs=d=>entries("k").filter(e=>dayKey(e.ts)===d).reduce((a,e)=>a+(e.secs||0),0);
+function calmDays(ws){const m=new Map();entries("k").filter(e=>weekStart(e.ts)===ws).forEach(e=>{const k=dayKey(e.ts),o=m.get(k)||{secs:0,ps:[]};o.secs+=e.secs||0;o.ps.push(e.p);m.set(k,o);});
+  return [...m.entries()].sort((a,b)=>a[0]-b[0]).map(([d,o])=>({d,secs:o.secs,ps:o.ps,ok:o.secs>=CMIN}));}
+const calmReward=()=>{const r=(Store.docs.prefs||{}).calmReward;return r==null?"$10":r;};
+const calmLine=(ws,days)=>{const ok=days.filter(x=>x.ok).length,s=days.reduce((a,x)=>a+x.secs,0);return "Vibe Check calm, week of "+fmtDay(ws)+": "+ok+" of "+CGOAL+" calm days ("+Math.round(s/60)+" min in total)."+(ok>=CGOAL&&calmReward()?" Reward: "+calmReward():"");};
+const FEEL=[["😣","Worse"],["😐","Same"],["🙂","A bit calmer"],["😌","Way calmer"]];
+// Yoga nidra script: [first level, last level, words or list or "bell", seconds of quiet after]
+const RIGHT=["Right hand thumb","Second finger","Third finger","Fourth finger","Little finger","Palm","Back of the hand","Wrist","Elbow","Upper arm","Shoulder","Armpit","Right side of the ribs","Waist","Hip","Thigh","Knee","Shin","Ankle","Heel","Sole of the foot","Big toe","Second toe","Third toe","Fourth toe","Little toe"];
+const LEFT=RIGHT.map(x=>x.replace(/Right/g,"Left").replace(/right/g,"left"));
+const NIDRA=[
+ [0,2,"bell",6],
+ [0,2,"Lie down on your back. Let your arms rest a little away from your body, palms up, and let your feet fall open.",8],
+ [0,2,"Grab a pillow or a blanket if you want. Get completely comfortable, because after this you'll stay still.",10],
+ [0,2,"Close your eyes. There's nothing to get right here. Just listen, and let the words move your attention around.",6],
+ [0,2,"Take a big breath in. And let it go with a sigh.",6],
+ [0,2,"One more. In. And out.",8],
+ [0,2,"Notice the sounds far away. Let them come and go.",8],
+ [0,2,"Now the sounds closer to you, in the room.",8],
+ [0,2,"Now feel your body lying here. The places where it touches the floor or the bed.",10],
+ [1,2,"Say to yourself: I am awake, I am listening, and I am going to relax.",6],
+ [0,2,"Pick a short sentence for yourself. Something true or hopeful. Like: I'm calm. I can do hard things. I'm enough.",10],
+ [0,2,"Say your sentence to yourself three times, like you mean it.",14],
+ [0,2,"Now we travel around the body. When you hear a body part, just notice it. You don't have to move it.",4],
+ [0,0,["Right hand","Right arm","Right shoulder","Right side of your waist","Right hip","Right leg","Right foot"],3],
+ [0,0,["Left hand","Left arm","Left shoulder","Left side of your waist","Left hip","Left leg","Left foot"],3],
+ [1,2,RIGHT,2],[1,2,LEFT,2],
+ [1,2,["Back of the head","Shoulder blades","The whole spine","Lower back","Backs of the legs","Both heels"],2.5],
+ [0,2,["Forehead","Eyebrows","The space between your eyebrows","Eyes","Nose","Cheeks","Lips","Chin","Throat","Chest","Belly"],2.5],
+ [0,2,["The whole right side","The whole left side","The whole body together","The whole body, lying perfectly still"],4],
+ [0,2,"Now notice your breath. Don't change it. Just feel it moving by itself.",10],
+ [0,0,"Count your breaths backwards from 10 down to 1. In, 10. Out, 10. In, 9. Out, 9. If you lose count, start again at 10.",40],
+ [1,2,"Count your breaths backwards from 27 down to 1. In, 27. Out, 27. In, 26. Out, 26. If you lose count, start again at 27.",60],
+ [1,2,"Let the counting go.",4],
+ [1,2,"Feel heaviness. Your whole body heavy, sinking into the floor, too heavy to lift.",18],
+ [1,2,"Now lightness. Your body so light it could float up off the floor.",18],
+ [2,2,"Feel warmth. Like lying on a beach in the sun.",16],
+ [2,2,"Now coolness. Like stepping into cool water.",16],
+ [2,2,"Now some quick pictures. Just let each one appear, then let it go.",4],
+ [2,2,["A cup of matcha, steaming","A beach at sunset","A cat asleep in a sunny window","A full moon","Rain on a window","A snowy mountain","A candle flame","A green field","A night sky full of stars","Your own bed, warm and safe"],4],
+ [0,2,"Now come back to your sentence from the beginning. Say it to yourself three times.",14],
+ [0,2,"Notice your body lying here again. The floor under you.",6],
+ [0,2,"Notice the sounds in the room.",6],
+ [0,2,"Wiggle your fingers and toes. Stretch any way that feels good.",10],
+ [0,2,"If it's bedtime, you can just roll over and drift off. Otherwise, roll onto your side, take your time, and sit up slowly.",6],
+ [0,2,"Yoga nidra is done.",3],
+ [0,2,"bell",6]
+];
+const NPACE=[1,1.5,2.1],WPS=2.2; // quiet stretches out at higher levels; spoken words per second
+function nidraSteps(lv){const out=[];NIDRA.forEach(([a,z,x,w])=>{if(lv<a||lv>z)return;
+  if(x==="bell")out.push({bell:1,w});else if(Array.isArray(x))x.forEach(s=>out.push({say:s,w:w*(1+lv*.25)}));else out.push({say:x,w:w*NPACE[lv]});});return out;}
+const nidraEst=lv=>nidraSteps(lv).reduce((t,s)=>t+s.w+(s.say?s.say.split(/\s+/).length/WPS:0),0);
+const nidraMins=lv=>Math.round(nidraEst(lv)/60);
+const PRACT={
+ breath:{a:"🐳",name:"4\u20117\u20118 breathing",line:"Breathe in for 4, hold for 7, whoosh out for 8, like a whale. It slows your heart down in about a minute.",steps:[2,3,4,6,8],unit:(n,i)=>n+" rounds"},
+ zen:{a:"🐸",name:"Zen sitting",line:"Sit still like a frog on a rock and count your breaths. When your mind wanders and you notice, that's one rep.",steps:[2,3,5,7,10,15,20],unit:(n,i)=>n+" min"},
+ nidra:{a:"🦥",name:"Yoga nidra",line:"Lie down and let a voice walk you around your body. Like a nap, but you come out sharper. Great at bedtime.",steps:[0,1,2],unit:(n,i)=>"about "+nidraMins(i)+" min"}
+};
+Object.assign(UI,{calm:{},pace:1,voice:true,sess:null,cres:null,showClock:false});
+const fmtSecs=s=>s<60?Math.round(s)+" sec":Math.round(s/60)+" min";
+function calmLevel(p){const ds=entries("k").filter(e=>e.p===p&&e.done),max=PRACT[p].steps.length-1;let top=0;
+  while(top<max&&ds.filter(e=>e.lv>=top).length>=UP)top++;
+  return {top,n:Math.min(UP,ds.filter(e=>e.lv>=top).length),max};}
+
+// Tibetan singing bowl, made from inharmonic sine partials with a slow decay. Paired, slightly detuned partials give the shimmer.
+let AC=null,WL=null,TICK=null,VOICE=null;
+function ac(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();}catch(e){AC=null;}return AC;}
+function bell(o){o=o||{};const c=ac();if(!c)return;try{
+  const t0=c.currentTime+(o.at||0),f=o.f||196,dur=o.dur||9,out=c.createGain();out.gain.value=o.vol==null?.4:o.vol;out.connect(c.destination);
+  [[1,1],[2.71,.5],[5.13,.25],[8.41,.12],[12.3,.06]].forEach(([r,g],i)=>[0,1].forEach(j=>{
+    const osc=c.createOscillator(),gn=c.createGain(),d=dur/(1+i*.7);osc.type="sine";osc.frequency.value=f*r*(j?1.0035:1);
+    gn.gain.setValueAtTime(0,t0);gn.gain.linearRampToValueAtTime(g*.5,t0+.008);gn.gain.exponentialRampToValueAtTime(.0001,t0+d);
+    osc.connect(gn);gn.connect(out);osc.start(t0);osc.stop(t0+d+.1);}));
+}catch(e){}}
+const chime=f=>bell({f,vol:.16,dur:2.5});
+async function wake(on){try{if(on&&navigator.wakeLock)WL=await navigator.wakeLock.request("screen");else if(!on&&WL){await WL.release();WL=null;}}catch(e){}}
+const canSpeak=()=>"speechSynthesis" in window&&typeof SpeechSynthesisUtterance!=="undefined";
+function pickVoice(){if(VOICE)return VOICE;try{const vs=speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang));
+  VOICE=vs.find(v=>/Samantha|Serena|Karen|Moira|Tessa|Google UK English Female|Female/i.test(v.name))||vs.find(v=>v.localService)||vs[0]||null;}catch(e){}return VOICE;}
+if(canSpeak())try{speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>{VOICE=null;};}catch(e){}
+
+function startSess(p){
+  const P=PRACT[p],lv=UI.calm[p]!=null?UI.calm[p]:calmLevel(p).top,s={p,lv,t0:Date.now(),drift:0,last:null};
+  ac();wake(true);
+  if(p==="breath"){s.c=UI.pace;s.rounds=P.steps[lv];s.pre=5;s.total=s.pre+s.rounds*19*s.c;bell();}
+  else if(p==="zen"){s.total=P.steps[lv]*60;bell();bell({at:4});bell({at:8});}
+  else{s.steps=nidraSteps(lv);s.i=-1;s.total=nidraEst(lv);s.voice=UI.voice&&canSpeak();
+    if(s.voice){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(" ");u.volume=0;speechSynthesis.speak(u);}catch(e){s.voice=false;}}}
+  UI.sess=s;UI.cres=null;UI.showClock=false;render();window.scrollTo(0,0);
+  TICK=setInterval(tick,100);tick();
+}
+function set(id,v,prop){const e=document.getElementById(id);if(e)e[prop||"textContent"]=v;}
+function tick(){const s=UI.sess;if(!s)return;const el=(Date.now()-s.t0)/1000;
+  if(s.p==="breath"){
+    const c=s.c;let cue,cnt,sc,ph;
+    if(el<s.pre){ph="pre";cue="Get comfy. Tongue tip behind your top front teeth. Breathe all the way out.";cnt=Math.ceil(s.pre-el);sc=.55;}
+    else{const t=el-s.pre,cyc=19*c,r=Math.floor(t/cyc);if(r>=s.rounds){bell();return endSess(true);}const x=t-r*cyc;s.round=r+1;
+      if(x<4*c){ph="in"+r;cue="In through your nose";cnt=Math.floor(x/c)+1;sc=.55+.45*x/(4*c);}
+      else if(x<11*c){ph="hold"+r;cue="Hold";cnt=Math.floor((x-4*c)/c)+1;sc=1;}
+      else{ph="out"+r;cue="Whoosh out through your mouth";cnt=Math.floor((x-11*c)/c)+1;sc=1-.45*(x-11*c)/(8*c);}}
+    if(ph!==s.last){if(ph!=="pre")chime(ph[0]==="i"?660:ph[0]==="h"?495:392);s.last=ph;}
+    const o=document.getElementById("orb");if(o)o.style.transform="scale("+sc.toFixed(3)+")";
+    set("cue",cue);set("cnt",cnt);set("sub",ph==="pre"?"Starting…":"Round "+s.round+" of "+s.rounds);
+  }else if(s.p==="zen"){
+    if(el>=s.total){bell();return endSess(true);}
+    const left=Math.ceil(s.total-el),o=document.getElementById("arc");if(o)o.setAttribute("stroke-dashoffset",(553*(1-el/s.total)).toFixed(1));
+    set("clock",UI.showClock?Math.floor(left/60)+":"+String(left%60).padStart(2,"0"):"🐸");
+    set("cue",el<10?"Sit tall, hands in your lap, eyes half-open, looking at the floor.":"Count each breath out, 1 up to 10. Lost count? Start again at 1.");
+  }else{
+    const now=Date.now();
+    if(s.i<0||(s.phase==="wait"&&now>=s.until)){
+      s.i++;if(s.i>=s.steps.length)return endSess(true);
+      const st=s.steps[s.i];
+      if(st.bell){bell();s.phase="wait";s.until=now+st.w*1000;}
+      else{s.phase="say";s.line=st.say;const est=st.say.split(/\s+/).length/WPS,idx=s.i;set("nline",st.say);
+        if(s.voice){s.sayEnd=now+(est*1.8+3)*1000;try{const u=new SpeechSynthesisUtterance(st.say);u.rate=.85;u.pitch=.95;const v=pickVoice();if(v)u.voice=v;
+          u.onend=()=>{if(UI.sess===s&&s.i===idx)s.sayEnd=0;};speechSynthesis.speak(u);}catch(e){s.sayEnd=now+est*1200;}}
+        else s.sayEnd=now+est*1200;}
+    }
+    if(s.phase==="say"&&now>=s.sayEnd){s.phase="wait";s.until=now+s.steps[s.i].w*1000;}
+    const bar=document.getElementById("nbar");if(bar)bar.style.width=Math.min(100,el/s.total*100).toFixed(1)+"%";
+  }
+}
+async function endSess(done){
+  const s=UI.sess;if(!s)return;clearInterval(TICK);TICK=null;try{if(canSpeak())speechSynthesis.cancel();}catch(e){}wake(false);
+  UI.sess=null;const secs=Math.round(Math.min(s.total,(Date.now()-s.t0)/1000)),before=calmLevel(s.p).top,dayBefore=daySecs(dayKey(Date.now()));
+  if(!done&&secs<20){render();return;}
+  const ts=Date.now(),id="k-"+ts.toString(36),doc={t:"k",ts,p:s.p,lv:s.lv,secs,done};if(s.p==="zen")doc.drift=s.drift;
+  if(await saveDoc(id,doc)){const after=calmLevel(s.p).top;UI.cres={id,p:s.p,lv:s.lv,secs,done,drift:s.drift,up:after>before?after:null,feel:null,stamp:dayBefore<CMIN&&dayBefore+secs>=CMIN};}
+  if(route()==="calm"){render();window.scrollTo(0,0);}
+}
+function viewSess(){
+  const s=UI.sess,P=PRACT[s.p],stop=`<div class="row" style="justify-content:center"><button data-cstop="1">Stop early</button></div>`;
+  if(s.p==="breath") return `<section class="card sess"><p class="small muted" id="sub"></p><div class="orbbox"><div class="orb" id="orb" aria-hidden="true">${P.a}</div></div>
+    <p class="cue" id="cue" aria-live="polite"></p><p class="cnt" id="cnt"></p>${stop}</section>`;
+  if(s.p==="zen") return `<section class="card sess"><p class="small muted">${P.unit(P.steps[s.lv])} · ${LVN[s.lv][0]} ${LVN[s.lv][1]}</p>
+    <button class="quiet" data-clock="1" aria-label="Show or hide the time left" style="padding:0;border:0"><svg class="ring" viewBox="0 0 200 200"><circle cx="100" cy="100" r="88" fill="none" stroke="var(--line)" stroke-width="10"/>
+      <circle id="arc" cx="100" cy="100" r="88" fill="none" stroke="var(--chart)" stroke-width="10" stroke-linecap="round" stroke-dasharray="553" stroke-dashoffset="553" transform="rotate(-90 100 100)"/>
+      <text id="clock" x="100" y="100" font-size="${UI.showClock?34:64}">🐸</text></svg></button>
+    <p class="small muted">Tap the circle to ${UI.showClock?"hide":"show"} the time. Not watching it is easier.</p>
+    <p class="cue small" id="cue"></p>
+    <button class="drift" data-drift="1">🐒 My mind wandered</button><p class="small" id="dcount">${s.drift?`Caught it ${s.drift} time${s.drift>1?"s":""}. Each catch is a rep.`:"Tap when you notice, then go back to counting."}</p>${stop}</section>`;
+  return `<section class="card sess"><div class="mascot" aria-hidden="true">${P.a}</div><p class="nline" id="nline" aria-live="polite">${esc(s.line||"Settling in…")}</p>
+    <div class="goalbar" style="width:100%"><i id="nbar" style="width:0"></i></div>
+    <p class="small muted">${s.voice?"Close your eyes and just listen.":"Read each line, then close your eyes for the quiet part. It moves on by itself."}</p>${stop}</section>`;
+}
+function viewCres(){
+  const r=UI.cres,P=PRACT[r.p],L=calmLevel(r.p);
+  const prog=L.top<L.max?`<p class="small">Toward ${LVN[L.top+1][0]} ${LVN[L.top+1][1]}: <strong>${"●".repeat(L.n)}${"○".repeat(UP-L.n)}</strong></p>`:"";
+  return `<section class="card"><div class="row" style="flex-wrap:nowrap;gap:12px"><div class="mascot" aria-hidden="true">${P.a}</div>
+    <h2>${r.done?"Done! "+fmtSecs(r.secs)+" of "+P.name.toLowerCase()+".":"Stopped after "+fmtSecs(r.secs)+". That still counts."}</h2></div>
+    ${(()=>{const t=daySecs(dayKey(Date.now())),ok=calmDays(weekStart(Date.now())).filter(x=>x.ok).length;
+      return r.stamp?`<div class="idea"><strong>Calm stamp earned for today! 🔔</strong><br>${ok} of ${CGOAL} this week.${ok>=CGOAL&&calmReward()?" Reward unlocked: "+esc(calmReward())+".":""}</div>`
+        :t>=CMIN?`<p class="small">Today's calm stamp is already in ✓ (${fmtSecs(t)} today).</p>`
+        :`<p><strong>Today: ${fmtSecs(t)} of 5 min.</strong> ${fmtSecs(CMIN-t)} more and today gets a stamp. Any practice counts.</p>`;})()}
+    ${r.up!=null?`<div class="idea"><strong>Level up! ${LVN[r.up][0]} ${LVN[r.up][1]} unlocked.</strong><br>Next time: ${P.unit(P.steps[r.up],r.up)}. You can also stay where you are.</div>`:prog}
+    ${r.p==="zen"&&r.drift?`<p>🐒 You caught your mind wandering <strong>${r.drift}</strong> time${r.drift>1?"s":""}. Noticing is the exercise, so that's ${r.drift} rep${r.drift>1?"s":""}.</p>`:""}
+    <div><p class="lab">How do you feel now?</p><div class="pick">${FEEL.map((f,i)=>`<button data-feel="${i}" class="${r.feel===i?"on":""}" aria-pressed="${r.feel===i}">${f[0]} ${f[1]}</button>`).join("")}</div></div>
+    <div class="row"><button class="primary" data-cdone="1">Done</button></div></section>`;
+}
+function viewCalm(){
+  if(UI.sess) return viewSess();
+  if(UI.cres) return viewCres();
+  const now=weekStart(Date.now()),wk=entries("k").filter(e=>weekStart(e.ts)===now),days=calmDays(now),good=days.filter(x=>x.ok),slots=Math.max(CGOAL,good.length),t=daySecs(dayKey(Date.now()));
+  const most=ps=>{const c={};ps.forEach(p=>c[p]=(c[p]||0)+1);return Object.keys(c).sort((a,b)=>c[b]-c[a])[0];};
+  const rw=calmReward(),got=Store.docs["r-c"+now.toString(36)];
+  const msg=good.length>=CGOAL?"All five calm days. Anything more is a bonus.":t>=CMIN?"Today's stamp is in. Nice.":t>0?`Today: ${fmtSecs(t)} of 5 min. ${fmtSecs(CMIN-t)} more for today's stamp.`:"5 minutes of calm today earns a stamp. Mix and match: whale + frog works.";
+  return `<section class="card"><div><h2>This week's calm days</h2><p class="muted small">${msg}</p></div>
+    <div class="stamps">${Array.from({length:slots},(_,i)=>good[i]?`<div class="stamp got" title="${esc(new Date(good[i].d).toLocaleDateString(undefined,{weekday:"long"})+", "+fmtSecs(good[i].secs))}">${PRACT[most(good[i].ps)].a}</div>`:`<div class="stamp">${i+1}</div>`).join("")}</div>
+    ${rw?(good.length>=CGOAL?`<div class="idea"><strong>Reward unlocked: ${esc(rw)}</strong><br>${got?"Collected for this week ✓":`Show this screen to collect it. <button data-ccollect="${now}" style="margin-left:6px">Mark collected</button>`}</div>`:`<p style="text-align:center;font-weight:700">${CGOAL} calm days this week = ${esc(rw)}</p>`):""}
+    ${good.length?`<div class="row" style="justify-content:center"><button id="copyCalm">Copy a text for Mom</button></div>`:""}
+    <p class="small muted">A calm day is 5 minutes of any practice, in one go or a few short ones. Each practice starts tiny. Finish ${UP} sessions at your level and the next, longer level unlocks. 🔔 Turn the ringer on to hear the bell. Headphones make it better.</p></section>`+
+  Object.keys(PRACT).map(p=>{
+    const P=PRACT[p],L=calmLevel(p),sel=UI.calm[p]!=null&&UI.calm[p]<=L.top?UI.calm[p]:L.top;
+    let extra="";
+    if(p==="breath")extra=`<div><p class="lab">Counting speed</p><div class="pick"><button data-cpace="1" class="${UI.pace===1?"on":""}" aria-pressed="${UI.pace===1}">Normal</button><button data-cpace="0.7" class="${UI.pace!==1?"on":""}" aria-pressed="${UI.pace!==1}">Quick (easier holds)</button></div>
+      <p class="small muted" style="margin-top:6px">Quick keeps the same 4-7-8 rhythm, just faster. A little lightheaded at first is normal. If it happens, stop and breathe normally.</p></div>`;
+    if(p==="nidra")extra=canSpeak()?`<div class="pick"><button data-cvoice="1" class="${UI.voice?"on":""}" aria-pressed="${UI.voice}">🗣️ Read it to me</button></div>`:`<p class="small muted">This browser can't read aloud, so the words show on screen.</p>`;
+    return `<section class="card"><div class="row" style="flex-wrap:nowrap;align-items:flex-start;gap:12px"><div class="mascot" aria-hidden="true">${P.a}</div><div><h2>${P.name}</h2><p class="small muted">${P.line}</p></div></div>
+      <div class="ladder">${P.steps.map((n,i)=>i<=L.top?`<button data-cpick="${p}" data-clv="${i}" class="${i===sel?"on":""}" aria-pressed="${i===sel}">${LVN[i][0]} ${LVN[i][1]}<br><small>${P.unit(n,i)}</small></button>`
+        :`<button disabled>🔒 ${LVN[i][1]}<br><small>${P.unit(n,i)}</small></button>`).join("")}</div>
+      <p class="small">${L.top<L.max?`Toward ${LVN[L.top+1][0]} ${LVN[L.top+1][1]}: <strong>${"●".repeat(L.n)}${"○".repeat(UP-L.n)}</strong> · ${UP-L.n} more at ${LVN[L.top][1]} or higher`:`Top level. You're a ${LVN[L.top][1]} now ${LVN[L.top][0]}`}</p>
+      ${extra}<div class="row"><button class="primary" data-cstart="${p}">Start · ${P.unit(P.steps[sel],sel)}</button></div></section>`;
+  }).join("")+
+  (wk.length?`<section class="card"><h2>This week</h2>${wk.slice().reverse().map(e=>`<div class="entry"><div class="row between"><span>${PRACT[e.p].a} ${PRACT[e.p].name} · ${fmtSecs(e.secs)}${e.done?"":" (stopped early)"}${e.feel!=null?" · "+FEEL[e.feel][0]:""}</span>${delBtn(e.id)}</div><span class="small muted">${fmtFull(e.ts)}</span></div>`).join("")}</section>`:"");
+}
+function calmTrend(){
+  const ks=entries("k");if(!ks.length) return `<section class="card"><h2>Calm</h2><p class="muted">No calm sessions yet. Try the whale on the Calm tab. It takes about a minute.</p></section>`;
+  let w=weekStart(Date.now());const rows=[];
+  for(let i=0;i<6;i++){const ds=calmDays(w);rows.push({w,n:ds.filter(x=>x.ok).length,secs:ds.reduce((a,x)=>a+x.secs,0)});w=prevWeek(w);}
+  const rated=ks.filter(e=>e.feel!=null),calmer=rated.filter(e=>e.feel>=2).length,rc=entries("r").filter(e=>e.kind==="calm").length;
+  return `<section class="card"><div><h2>Calm</h2><p class="muted small">Calm days per week (5+ minutes each). The dashed line is ${CGOAL}.${rc?` Calm rewards collected so far: ${rc}.`:""}</p></div>
+    <div class="bars">${rows.map(r=>`<span>${fmtDay(r.w)}</span><div class="row" style="flex-wrap:nowrap"><div class="goalbar" style="flex:1"><i style="width:${r.n/7*100}%"></i><u style="left:${CGOAL/7*100}%"></u></div><b style="font-size:.8rem;white-space:nowrap">${r.n} · ${fmtSecs(r.secs)}</b></div>`).join("")}</div>
+    <div class="tiles">${Object.keys(PRACT).map(p=>{const L=calmLevel(p);return `<div class="tile"><div class="k">${PRACT[p].a} ${PRACT[p].name}</div><div style="font-weight:700">${LVN[L.top][0]} ${LVN[L.top][1]}</div></div>`;}).join("")}
+      ${rated.length?`<div class="tile"><div class="k">Felt calmer after</div><div class="v">${calmer} of ${rated.length}</div></div>`:""}</div></section>`;
+}
 
 /* ---------- setup ---------- */
 function viewSetup(){
-  return `<section class="card"><h2>Weekly reward</h2><p class="small muted">What three stamps in a week earn. Leave it empty for no reward.</p>
+  return `<section class="card"><h2>Weekly rewards</h2><p class="small muted">What a full week of stamps earns. Leave one empty for no reward.</p>
     <div><label class="lab" for="reward">Reward for 3 stamps</label><input type="text" id="reward" maxlength="60" value="${esc(reward())}"></div>
-    <div class="row"><button id="saveReward">Save reward</button></div></section>
+    <div><label class="lab" for="calmReward">Reward for ${CGOAL} calm days</label><input type="text" id="calmReward" maxlength="60" value="${esc(calmReward())}"></div>
+    <div class="row"><button id="saveReward">Save rewards</button></div></section>
   <section class="card"><h2>Backup</h2><p class="small muted">Everything you write lives in this browser on this device. A backup is a block of text holding all of it. Keep it somewhere only you can open.</p>
     <div class="row"><button id="copyBackup">Copy a backup</button></div>
     <div><label class="lab" for="restore">Restore from a backup</label><textarea id="restore" rows="3" spellcheck="false"></textarea></div>
@@ -471,10 +689,10 @@ function viewSetup(){
 async function copyText(txt,ok){try{await navigator.clipboard.writeText(txt);toast(ok);}catch(e){$("#restore").value=txt;toast("Copying was blocked. The text is in the box; select and copy it.");}}
 
 /* ---------- render + events ---------- */
-const VIEWS={today:viewToday,move:viewMove,scales:viewScales,trends:viewTrends,setup:viewSetup};
+const VIEWS={today:viewToday,move:viewMove,calm:viewCalm,scales:viewScales,trends:viewTrends,setup:viewSetup};
 let VIEW=null;
 function route(){if(VIEW)return VIEW;let h="";try{h=location.hash.slice(1);}catch(e){}return VIEWS[h]?h:"today";}
-function go(v){if(!VIEWS[v])return;if(v!=="scales"){UI.taking=null;UI.result=null;}else if(route()==="scales")UI.result=null;VIEW=v;UI.confirm=null;try{if(location.hash.slice(1)!==v)location.hash=v;}catch(e){}render();try{window.scrollTo(0,0);}catch(e){}}
+function go(v){if(!VIEWS[v])return;if(v!=="calm"){if(UI.sess)endSess(false);UI.cres=null;}if(v!=="scales"){UI.taking=null;UI.result=null;}else if(route()==="scales")UI.result=null;VIEW=v;UI.confirm=null;try{if(location.hash.slice(1)!==v)location.hash=v;}catch(e){}render();try{window.scrollTo(0,0);}catch(e){}}
 function render(){
   const r=route();
   document.querySelectorAll("nav a").forEach(a=>a.getAttribute("href")==="#"+r?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current"));
@@ -493,6 +711,15 @@ main.addEventListener("click",async ev=>{
   if(b.dataset.lv!=null){keepNote();const f=UI.fam,lv=+b.dataset.lv,cur=levelOf(f);UI.sel=UI.sel.filter(x=>WORD[x].f!==f);if(cur!==lv)UI.sel.push(f+"-"+lv);render();}
   else if(b.id==="saveCheck"){b.disabled=true;const ts=Date.now();
     if(await saveDoc("c-"+ts.toString(36),{t:"c",ts,emotions:UI.sel.slice(),note:($("#note").value||"").trim().slice(0,4000)})){UI.sel=[];UI.fam=null;UI.note="";toast("Snapshot saved 📸");}render();}
+  else if(b.dataset.cpick){UI.calm[b.dataset.cpick]=+b.dataset.clv;render();}
+  else if(b.dataset.cstart){startSess(b.dataset.cstart);}
+  else if(b.dataset.cstop){endSess(false);}
+  else if(b.dataset.drift){const s=UI.sess;if(s){s.drift++;set("dcount","Caught it "+s.drift+" time"+(s.drift>1?"s":"")+". Each catch is a rep.");try{navigator.vibrate&&navigator.vibrate(25);}catch(e){}}}
+  else if(b.dataset.clock){UI.showClock=!UI.showClock;render();tick();}
+  else if(b.dataset.feel!=null){const r=UI.cres,d=r&&Store.docs[r.id];if(d&&await saveDoc(r.id,Object.assign({},d,{feel:+b.dataset.feel}))){r.feel=+b.dataset.feel;render();}}
+  else if(b.dataset.cdone){UI.cres=null;render();}
+  else if(b.dataset.cpace){UI.pace=+b.dataset.cpace;render();}
+  else if(b.dataset.cvoice){UI.voice=!UI.voice;render();}
   else if(b.dataset.ask){keepNote();UI.confirm=b.dataset.ask;render();}
   else if(b.dataset.cancel){keepNote();UI.confirm=null;render();}
   else if(b.dataset.del){keepNote();UI.confirm=null;UI.card=null;await removeDoc(b.dataset.del);render();}
@@ -501,7 +728,9 @@ main.addEventListener("click",async ev=>{
   else if(b.dataset.mins){UI.mv.mins=+b.dataset.mins;render();}
   else if(b.dataset.eff!=null){UI.mv.eff=+b.dataset.eff;render();}
   else if(b.dataset.collect){const w=+b.dataset.collect;if(await saveDoc("r-"+w.toString(36),{t:"r",ts:Date.now(),w,reward:reward()}))toast("Collected. You earned it.");render();}
-  else if(b.id==="saveReward"){const p=Object.assign({},Store.docs.prefs||{});p.reward=$("#reward").value.trim().slice(0,60);if(await saveDoc("prefs",p))toast(p.reward?"Reward saved":"Reward turned off");}
+  else if(b.id==="saveReward"){const p=Object.assign({},Store.docs.prefs||{});p.reward=$("#reward").value.trim().slice(0,60);p.calmReward=$("#calmReward").value.trim().slice(0,60);if(await saveDoc("prefs",p))toast("Rewards saved");}
+  else if(b.dataset.ccollect){const w=+b.dataset.ccollect;if(await saveDoc("r-c"+w.toString(36),{t:"r",kind:"calm",ts:Date.now(),w,reward:calmReward()}))toast("Collected. You earned it.");render();}
+  else if(b.id==="copyCalm"){const now=weekStart(Date.now());try{await navigator.clipboard.writeText(calmLine(now,calmDays(now)));toast("Copied. Paste it into a message to Mom.");}catch(e){toast("Copying was blocked here. Take a screenshot instead.");}}
   else if(b.id==="mkCard"||b.id==="copyLine"){const now=weekStart(Date.now()),hard=entries("m").filter(e=>weekStart(e.ts)===now).filter(counted);
     if(b.id==="mkCard"){try{UI.card=makeCard(hard,now);}catch(e){toast("The picture could not be made here. Take a screenshot instead.");}render();}
     else{try{await navigator.clipboard.writeText(stampLine(hard,now));toast("Copied. Paste it into a message to Mom.");}catch(e){toast("Copying was blocked here. Screenshot the card instead.");}}}
@@ -517,7 +746,7 @@ main.addEventListener("click",async ev=>{
   else if(b.id==="copyBackup"){copyText(JSON.stringify(Store.docs),"Backup copied. Paste it somewhere private.");}
   else if(b.id==="doRestore"){let d;try{d=JSON.parse($("#restore").value);}catch(e){}
     if(!d||typeof d!=="object"||Array.isArray(d)){toast("That is not backup text from this journal.");return;}
-    let n=0;for(const [id,v] of Object.entries(d)){if(/^(scales|prefs|[cqmr]-[a-z0-9]+)$/.test(id)&&v&&typeof v==="object"){if(await saveDoc(id,v))n++;}}
+    let n=0;for(const [id,v] of Object.entries(d)){if(/^(scales|prefs|[cqmrk]-[a-z0-9]+)$/.test(id)&&v&&typeof v==="object"){if(await saveDoc(id,v))n++;}}
     toast("Restored "+n+" items");render();}
 });
 main.addEventListener("keydown",ev=>{const g=ev.target.closest&&ev.target.closest(".sec");if(g&&(ev.key===" "||ev.key==="Enter")){ev.preventDefault();pickFamily(g.dataset.f);}});
