@@ -555,9 +555,18 @@ function bell(o){o=o||{};const c=ac();if(!c)return;try{
 const chime=f=>bell({f,vol:.16,dur:2.5});
 async function wake(on){try{if(on&&navigator.wakeLock)WL=await navigator.wakeLock.request("screen");else if(!on&&WL){await WL.release();WL=null;}}catch(e){}}
 const canSpeak=()=>"speechSynthesis" in window&&typeof SpeechSynthesisUtterance!=="undefined";
-function pickVoice(){if(VOICE)return VOICE;try{const vs=speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang));
-  VOICE=vs.find(v=>/Samantha|Serena|Karen|Moira|Tessa|Google UK English Female|Female/i.test(v.name))||vs.find(v=>v.localService)||vs[0]||null;}catch(e){}return VOICE;}
-if(canSpeak())try{speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>{VOICE=null;};}catch(e){}
+// Rank voices so the most natural one wins: neural/premium voices first (Edge "Natural", Apple "Premium"/"Enhanced"),
+// then Chrome's Google voices, then good built-in ones. Novelty voices (Zarvox, Bubbles…) never get picked.
+const NOVELTY=/Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Good News|Jester|Organ|Superstar|Trinoids|Whisper|Wobble|Zarvox|Fred|Junior|Ralph|Kathy|Hysterical|Deranged|Pipe|Grandma|Grandpa|Eddy|Flo|Reed|Rocko|Sandy|Shelley/i;
+function voiceScore(v){const n=v.name;if(NOVELTY.test(n))return -1;let s=10;
+  if(/natural|neural|premium|enhanced|siri/i.test(n))s=100;else if(/^Google UK English Female/i.test(n))s=85;else if(/^Google/i.test(n))s=80;
+  else if(/Ava|Samantha|Allison|Susan|Zoe|Serena|Karen|Moira|Tessa|Aria|Jenny|Libby|Sonia|Daniel/i.test(n))s=50;
+  if(/^en[-_](US|GB)/i.test(v.lang))s+=3;if(/compact/i.test(n))s-=20;return s;}
+function voiceList(){try{return speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang)&&voiceScore(v)>=0).sort((a,b)=>voiceScore(b)-voiceScore(a));}catch(e){return [];}}
+function pickVoice(){if(VOICE)return VOICE;const vs=voiceList(),want=(Store.docs.prefs||{}).voiceName;VOICE=vs.find(v=>v.name===want)||vs[0]||null;return VOICE;}
+function speakLine(text,onDone){const u=new SpeechSynthesisUtterance(text),v=pickVoice();if(v){u.voice=v;u.lang=v.lang;}
+  u.rate=v&&/^Google/i.test(v.name)?.9:.85;u.pitch=1;u.onend=onDone;u.onerror=onDone;speechSynthesis.speak(u);}
+if(canSpeak())try{speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>{VOICE=null;if(route()==="calm"&&!UI.sess&&!UI.cres&&!document.querySelector("#voicePick:focus"))render();};}catch(e){}
 
 function startSess(p){
   const P=PRACT[p],lv=UI.calm[p]!=null?UI.calm[p]:calmLevel(p).top,s={p,lv,t0:Date.now(),drift:0,last:null};
@@ -593,8 +602,7 @@ function tick(){const s=UI.sess;if(!s)return;const el=(Date.now()-s.t0)/1000;
       const st=s.steps[s.i];
       if(st.bell){bell();s.phase="wait";s.until=now+st.w*1000;}
       else{s.phase="say";s.line=st.say;const est=st.say.split(/\s+/).length/WPS,idx=s.i;set("nline",st.say);
-        if(s.voice){s.sayEnd=now+(est*1.8+3)*1000;try{const u=new SpeechSynthesisUtterance(st.say);u.rate=.85;u.pitch=.95;const v=pickVoice();if(v)u.voice=v;
-          u.onend=()=>{if(UI.sess===s&&s.i===idx)s.sayEnd=0;};speechSynthesis.speak(u);}catch(e){s.sayEnd=now+est*1200;}}
+        if(s.voice){s.sayEnd=now+(est*1.8+3)*1000;try{speakLine(st.say,()=>{if(UI.sess===s&&s.i===idx)s.sayEnd=0;});}catch(e){s.sayEnd=now+est*1200;}}
         else s.sayEnd=now+est*1200;}
     }
     if(s.phase==="say"&&now>=s.sayEnd){s.phase="wait";s.until=now+s.steps[s.i].w*1000;}
@@ -655,7 +663,12 @@ function viewCalm(){
     let extra="";
     if(p==="breath")extra=`<div><p class="lab">Counting speed</p><div class="pick"><button data-cpace="1" class="${UI.pace===1?"on":""}" aria-pressed="${UI.pace===1}">Normal</button><button data-cpace="0.7" class="${UI.pace!==1?"on":""}" aria-pressed="${UI.pace!==1}">Quick (easier holds)</button></div>
       <p class="small muted" style="margin-top:6px">Quick keeps the same 4-7-8 rhythm, just faster. A little lightheaded at first is normal. If it happens, stop and breathe normally.</p></div>`;
-    if(p==="nidra")extra=canSpeak()?`<div class="pick"><button data-cvoice="1" class="${UI.voice?"on":""}" aria-pressed="${UI.voice}">🗣️ Read it to me</button></div>`:`<p class="small muted">This browser can't read aloud, so the words show on screen.</p>`;
+    if(p==="nidra"){const vs=voiceList(),cur=pickVoice();
+      extra=!canSpeak()?`<p class="small muted">This browser can't read aloud, so the words show on screen.</p>`
+      :`<div class="pick"><button data-cvoice="1" class="${UI.voice?"on":""}" aria-pressed="${UI.voice}">🗣️ Read it to me</button></div>`+(UI.voice&&vs.length?`
+      <div><label class="lab" for="voicePick">Voice</label><div class="row" style="flex-wrap:nowrap"><select id="voicePick" style="font:inherit;flex:1;min-width:0;border:2px solid var(--edge);border-radius:14px;background:var(--bg);color:var(--ink);padding:9px 10px">
+        ${vs.slice(0,12).map(v=>`<option value="${esc(v.name)}" ${cur&&v.name===cur.name?"selected":""}>${esc(v.name.replace(/\s*\(.*?\)\s*/g," ").trim())}${voiceScore(v)>=80?" ★":""}</option>`).join("")}</select><button data-vtest="1">▶ Test</button></div>
+      <p class="small muted" style="margin-top:6px">★ = the most natural voices on this device. Still sounds robotic? On iPhone or Mac, download a better one: Settings → Accessibility → Spoken Content → Voices → English, then pick one marked Premium or Enhanced (Ava or Zoe sound great).</p></div>`:"");}
     return `<section class="card"><div class="row" style="flex-wrap:nowrap;align-items:flex-start;gap:12px"><div class="mascot" aria-hidden="true">${P.a}</div><div><h2>${P.name}</h2><p class="small muted">${P.line}</p></div></div>
       <div class="ladder">${P.steps.map((n,i)=>i<=L.top?`<button data-cpick="${p}" data-clv="${i}" class="${i===sel?"on":""}" aria-pressed="${i===sel}">${LVN[i][0]} ${LVN[i][1]}<br><small>${P.unit(n,i)}</small></button>`
         :`<button disabled>🔒 ${LVN[i][1]}<br><small>${P.unit(n,i)}</small></button>`).join("")}</div>
@@ -720,6 +733,7 @@ main.addEventListener("click",async ev=>{
   else if(b.dataset.cdone){UI.cres=null;render();}
   else if(b.dataset.cpace){UI.pace=+b.dataset.cpace;render();}
   else if(b.dataset.cvoice){UI.voice=!UI.voice;render();}
+  else if(b.dataset.vtest){try{speechSynthesis.cancel();speakLine("Lie down, get comfortable, and let your whole body get heavy. There's nothing to do right now.",()=>{});}catch(e){toast("This browser could not play the voice.");}}
   else if(b.dataset.ask){keepNote();UI.confirm=b.dataset.ask;render();}
   else if(b.dataset.cancel){keepNote();UI.confirm=null;render();}
   else if(b.dataset.del){keepNote();UI.confirm=null;UI.card=null;await removeDoc(b.dataset.del);render();}
@@ -752,6 +766,7 @@ main.addEventListener("click",async ev=>{
 main.addEventListener("keydown",ev=>{const g=ev.target.closest&&ev.target.closest(".sec");if(g&&(ev.key===" "||ev.key==="Enter")){ev.preventDefault();pickFamily(g.dataset.f);}});
 main.addEventListener("change",ev=>{const t=ev.target;
   if(t.type==="radio"&&UI.taking){UI.answers[+t.name.slice(1)]=+t.value;paintProgress();}
+  else if(t.id==="voicePick"){VOICE=null;saveDoc("prefs",Object.assign({},Store.docs.prefs||{},{voiceName:t.value}));try{speechSynthesis.cancel();speakLine("This is how I'll sound.",()=>{});}catch(e){}}
 });
 main.addEventListener("input",ev=>{const t=ev.target;if(t.id==="note")UI.note=t.value;else if(t.id==="about")UI.about=t.value;});
 main.addEventListener("submit",ev=>ev.preventDefault());
