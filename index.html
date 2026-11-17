@@ -169,20 +169,33 @@ const FAMILIES=[
  {id:"anticipation",a:"🦊",an:"fox",words:["interest","anticipation","vigilance"]}
 ];
 const FAM={},WORD={};FAMILIES.forEach(f=>{FAM[f.id]=f;f.words.forEach((w,i)=>WORD[f.id+"-"+i]={w,f:f.id,a:f.a});});
-// PHQ-9 and GAD-7: official wording, answer choices and severity ranges.
-const CREDIT="Developed by Drs. Robert L. Spitzer, Janet B.W. Williams, Kurt Kroenke and colleagues, with an educational grant from Pfizer Inc. No permission required to reproduce, translate, display or distribute.";
-const STEM="Over the last 2 weeks, how often have you been bothered by any of the following problems?";
-const OPTS=["Not at all","Several days","More than half the days","Nearly every day"];
+// Burns Depression Checklist and Burns Anxiety Inventory: rated over the past week, 0 to 3 per item.
+const BURNS="Burns Depression Checklist and Burns Anxiety Inventory © David D. Burns, MD.";
+const BSTEM="Over the past week, how much have you been bothered by each of these?";
+const BOPTS=["Not at all","Somewhat","Moderately","A lot"];
 const SCALES={
- phq:{name:"PHQ-9",short:"Depression",n:9,better:"lower",credit:CREDIT,prompt:STEM,opts:OPTS,
-  items:["Little interest or pleasure in doing things","Feeling down, depressed, or hopeless","Trouble falling or staying asleep, or sleeping too much","Feeling tired or having little energy","Poor appetite or overeating",
-   "Feeling bad about yourself \u2014 or that you are a failure or have let yourself or your family down","Trouble concentrating on things, such as reading the newspaper or watching television",
-   "Moving or speaking so slowly that other people could have noticed? Or the opposite \u2014 being so fidgety or restless that you have been moving around a lot more than usual","Thoughts that you would be better off dead or of hurting yourself in some way"],
-  bands:[[0,4,"Minimal depression"],[5,9,"Mild depression"],[10,14,"Moderate depression"],[15,19,"Moderately severe depression"],[20,27,"Severe depression"]]},
- gad:{name:"GAD-7",short:"Anxiety",n:7,better:"lower",credit:CREDIT,prompt:STEM,opts:OPTS,
-  items:["Feeling nervous, anxious or on edge","Not being able to stop or control worrying","Worrying too much about different things","Trouble relaxing","Being so restless that it is hard to sit still","Becoming easily annoyed or irritable","Feeling afraid as if something awful might happen"],
-  bands:[[0,4,"Minimal anxiety"],[5,9,"Mild anxiety"],[10,14,"Moderate anxiety"],[15,21,"Severe anxiety"]]}
+ bdc:{name:"Burns Depression Checklist",short:"Depression",n:14,better:"lower",credit:BURNS,prompt:BSTEM,opts:BOPTS,care:13,
+  items:["Sadness: Have you been feeling sad or down in the dumps?","Discouragement: Does the future look hopeless?","Low self-esteem: Do you feel worthless or think of yourself as a failure?",
+   "Inferiority: Do you feel inadequate or inferior to others?","Guilt: Do you get self-critical and blame yourself for everything?","Indecisiveness: Do you have trouble making up your mind about things?",
+   "Irritability and frustration: Have you been feeling resentful and angry a good deal of the time?","Loss of interest in life: Have you lost interest in your career, your hobbies, your family, or your friends?",
+   "Loss of motivation: Do you feel overwhelmed and have to push yourself hard to do things?","Poor self-image: Do you think you're looking old or unattractive?",
+   "Appetite changes: Have you lost your appetite? Or do you overeat or binge compulsively?","Sleep changes: Do you suffer from insomnia and find it hard to get a good night's sleep? Or are you excessively tired and sleeping too much?",
+   "Hypochondriasis: Do you worry a great deal about your health?","Suicidal impulses: Do you have thoughts that life is not worth living or think that you might be better off dead?"],
+  bands:[[0,4,"Minimal or no depression"],[5,10,"Borderline depression"],[11,20,"Mild depression"],[21,30,"Moderate depression"],[31,45,"Severe depression"]]},
+ bai:{name:"Burns Anxiety Inventory",short:"Anxiety",n:33,better:"lower",credit:BURNS,prompt:BSTEM,opts:BOPTS,
+  groups:{0:"Anxious feelings",6:"Anxious thoughts",17:"Physical symptoms"},
+  items:["Anxiety, nervousness, worry, or fear","Feeling that things around you are strange, unreal, or foggy","Feeling detached from all or part of your body","Sudden unexpected panic spells",
+   "Apprehension or a sense of impending doom","Feeling tense, stressed, “uptight”, or on edge",
+   "Difficulty concentrating","Racing thoughts or having your mind jump from one thing to the next","Frightening fantasies or daydreams","Feeling that you're on the verge of losing control",
+   "Fears of cracking up or going crazy","Fears of fainting or passing out","Fears of physical illnesses or heart attacks or dying","Concerns about looking foolish or inadequate in front of others",
+   "Fears of being alone, isolated, or abandoned","Fears of criticism or disapproval","Fears that something terrible is about to happen",
+   "Skipping or racing or pounding of the heart (sometimes called “palpitations”)","Pain, pressure, or tightness in the chest","Tingling or numbness in the toes or fingers",
+   "Butterflies or discomfort in the stomach","Constipation or diarrhea","Restlessness or jumpiness","Tight, tense muscles","Sweating not brought on by heat","A lump in the throat",
+   "Trembling or shaking","Rubbery or “jelly” legs","Feeling dizzy, lightheaded, or off balance","Choking or smothering sensations or difficulty breathing",
+   "Headaches or pains in the neck or back","Hot flashes or cold chills","Feeling tired, weak, or easily exhausted"],
+  bands:[[0,4,"Minimal or no anxiety"],[5,10,"Borderline anxiety"],[11,20,"Mild anxiety"],[21,30,"Moderate anxiety"],[31,50,"Severe anxiety"],[51,99,"Extreme anxiety or panic"]]}
 };
+const QGOAL=3; // check-ups per scale per week
 const band=(k,t)=>{const b=SCALES[k].bands;return (b.find(x=>t>=x[0]&&t<=x[1])||(t>b[b.length-1][1]?b[b.length-1]:b[0]))[2];};
 // Movement. Effort levels follow the CDC talk test.
 const ACTS=[["box","🥊","Boxing"],["photo","📸","Fast photo walk"],["walk","🍵","Brisk walk"],["rope","⏱️","Jump rope"],["stairs","🪜","Stairs"],["home","🤸","Home workout"],["other","✨","Something else"]];
@@ -350,17 +363,19 @@ function viewMove(){
 function viewScales(){
   if(UI.result) return viewResult();
   if(UI.taking) return viewTake();
-  return `<p class="muted small">Two short, standard check-ups. Once a week is plenty.</p>`+active().map(k=>{
-    const s=SCALES[k],n=items(k).length,es=entries("q").filter(e=>e.scale===k),last=es[es.length-1];
+  const now=weekStart(Date.now());
+  return `<p class="muted small">Two check-ups about the past week. Aim for each one at least ${QGOAL} times a week, for example Monday, Wednesday and Friday.</p>`+active().map(k=>{
+    const s=SCALES[k],n=items(k).length,es=entries("q").filter(e=>e.scale===k),last=es[es.length-1],tw=es.filter(e=>weekStart(e.ts)===now).length;
     return `<section class="card"><div class="row between"><div><h2>${s.short} check-up</h2><p class="muted small">${s.name} · ${n} quick taps</p></div>
       <button class="primary" data-take="${k}">Start</button></div>
-      <p class="small">${last?`Last time, ${fmtDay(last.ts)}: <strong>${last.total}</strong> · ${esc(band(k,last.total))}`:'<span class="muted">Not taken yet</span>'}</p></section>`;
+      <p class="small">${last?`Last time, ${fmtDay(last.ts)}: <strong>${last.total}</strong> · ${esc(band(k,last.total))}`:'<span class="muted">Not taken yet</span>'}</p>
+      <p class="small">This week: <span class="pill${tw>=QGOAL?" good":""}">${tw} of ${QGOAL}${tw>=QGOAL?" ✓":""}</span></p></section>`;
   }).join("");
 }
 function viewTake(){
   const k=UI.taking,s=SCALES[k],q=items(k);
   return `<section class="card"><div><h2>${s.short} check-up</h2><p style="font-weight:500">${s.prompt}</p><p class="muted small">${s.name}. There are no right answers.</p></div>
-    <form id="qform">${q.map((t,i)=>`<fieldset><legend>${i+1}. ${esc(t)}</legend><div class="opts">${s.opts.map((o,v)=>`<label><input type="radio" name="q${i}" id="q${i}_${v}" value="${v}" ${UI.answers[i]===v?"checked":""}><span>${v} · ${o}</span></label>`).join("")}</div></fieldset>`).join("")}</form>
+    <form id="qform">${q.map((t,i)=>`${s.groups&&s.groups[i]?`<h2 style="margin-top:12px">${esc(s.groups[i])}</h2>`:""}<fieldset><legend>${i+1}. ${esc(t)}</legend><div class="opts">${s.opts.map((o,v)=>`<label><input type="radio" name="q${i}" id="q${i}_${v}" value="${v}" ${UI.answers[i]===v?"checked":""}><span>${v} · ${o}</span></label>`).join("")}</div></fieldset>`).join("")}</form>
     <div class="sticky row between"><span id="progress" class="small"></span><span class="row"><button data-quit="1">Cancel</button><button class="primary" id="saveScale" disabled>Save</button></span></div>
     <p class="muted small">${s.credit}</p></section>`;
 }
@@ -374,7 +389,7 @@ function viewResult(){
     <div class="tiles"><div class="tile"><div class="k">${s.short} score, out of ${r.max}</div><div class="v">${r.total}</div></div>
     <div class="tile"><div class="k">Score range</div><div style="font-weight:700;font-size:1.05rem">${esc(band(r.scale,r.total))}</div></div></div>
     <p class="small muted">A score is a snapshot of one week. It is something to bring to your therapist, and it changes.</p>
-    ${r.care?`<div class="banner care"><strong>You marked thoughts of being better off dead or of hurting yourself.</strong> Please tell your therapist or an adult you trust today. If you might act on those thoughts, call or text 988 now, or call 911.</div>`:""}
+    ${r.care?`<div class="banner care"><strong>You marked thoughts that life is not worth living or that you might be better off dead.</strong> Please tell your therapist or an adult you trust today. If you might act on those thoughts, call or text 988 now, or call 911.</div>`:""}
     <details><summary class="small">See the full key</summary><div class="tablebox"><table><thead><tr><th>Total score</th><th>Level</th></tr></thead><tbody>${s.bands.map(b=>`<tr><td>${b[0]} to ${b[1]}</td><td>${b[2]}</td></tr>`).join("")}</tbody></table></div></details>
     <div class="row"><a class="btn" href="#trends" data-done="1">See trends</a><button data-done="1">Done</button></div></section>`;
 }
@@ -416,8 +431,8 @@ function scaleTrend(k){
       <div class="tile"><div class="k">This week vs last</div><div style="margin-top:6px">${tw?deltaPill(k,tw.prev==null?null:tw.avg-tw.prev):'<span class="muted">not taken this week</span>'}</div></div>
     </div>
     ${lineChart(k,es,mx)}
-    <div class="tablebox"><table><thead><tr><th>Week of</th><th class="num">Average</th><th class="num">Times</th><th>Vs week before</th></tr></thead><tbody>
-      ${wk.slice(0,8).map(w=>`<tr><td>${fmtDay(w.w)}</td><td class="num">${r1(w.avg)}</td><td class="num">${w.n}</td><td>${deltaPill(k,w.prev==null?null:w.avg-w.prev)}</td></tr>`).join("")}</tbody></table></div>
+    <div class="tablebox"><table><thead><tr><th>Week of</th><th class="num">Average</th><th class="num">Check-ups</th><th>Vs week before</th></tr></thead><tbody>
+      ${wk.slice(0,8).map(w=>`<tr><td>${fmtDay(w.w)}</td><td class="num">${r1(w.avg)}</td><td class="num"${w.n<QGOAL?' style="color:var(--warn)"':""}>${w.n} of ${QGOAL}</td><td>${deltaPill(k,w.prev==null?null:w.avg-w.prev)}</td></tr>`).join("")}</tbody></table></div>
     <details><summary class="small">Every score (${es.length})</summary><div class="tablebox"><table><tbody>${es.slice().reverse().map(e=>`<tr><td>${fmtFull(e.ts)}</td><td class="num">${e.total}</td><td>${esc(band(k,e.total))}${e.about?" · "+esc(e.about):""}</td><td>${delBtn(e.id)}</td></tr>`).join("")}</tbody></table></div></details>
   </section>`;
 }
@@ -496,7 +511,7 @@ main.addEventListener("click",async ev=>{
   else if(b.dataset.quit){UI.taking=null;render();}
   else if(b.id==="saveScale"){b.disabled=true;const k=UI.taking,ts=Date.now(),total=UI.answers.reduce((a,v)=>a+v,0),q=items(k);
     const doc={t:"q",scale:k,ts,answers:UI.answers.slice(),total};const ab=$("#about")?$("#about").value.trim():"";if(ab)doc.about=ab;
-    const care=k==="phq"&&UI.answers[8]>=1;
+    const care=SCALES[k].care!=null&&UI.answers[SCALES[k].care]>=1;
     if(await saveDoc("q-"+ts.toString(36),doc)){UI.result={scale:k,total,care,n:q.length,max:maxOf(k,q.length)};UI.taking=null;}render();window.scrollTo(0,0);}
   else if(b.dataset.done){UI.result=null;if(b.tagName==="BUTTON")render();}
   else if(b.id==="copyBackup"){copyText(JSON.stringify(Store.docs),"Backup copied. Paste it somewhere private.");}
